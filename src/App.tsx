@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePickerComponent } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -187,6 +188,17 @@ function parseDateOrNull(s: string): number | null {
   if (!s) return null;
   const t = Date.parse(s);
   return Number.isFinite(t) ? t : null;
+}
+
+function stringToDate(s: string): Date | null {
+  if (!s) return null;
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function dateToString(d: Date | null): string {
+  if (!d) return "";
+  return d.toISOString().split('T')[0];
 }
 
 function clamp01_10(n: number): number {
@@ -1374,10 +1386,10 @@ export default function SummerResearchTrackerApp() {
                           </TableCell>
 
                           <TableCell>
-                            <Input
-                              type="date"
-                              value={p.ddl}
-                              onChange={(e) => updateProject(p.id, { ddl: e.target.value })}
+                            <DatePickerComponent
+                              selected={stringToDate(p.ddl)}
+                              onChange={(date) => updateProject(p.id, { ddl: dateToString(date) })}
+                              placeholderText="DDL"
                               className="h-8"
                             />
                           </TableCell>
@@ -1416,10 +1428,10 @@ export default function SummerResearchTrackerApp() {
                                 placeholder="Next action"
                                 className="h-8"
                               />
-                              <Input
-                                type="date"
-                                value={p.nextActionDate}
-                                onChange={(e) => updateProject(p.id, { nextActionDate: e.target.value })}
+                              <DatePickerComponent
+                                selected={stringToDate(p.nextActionDate)}
+                                onChange={(date) => updateProject(p.id, { nextActionDate: dateToString(date) })}
+                                placeholderText="Next action date"
                                 className="h-8"
                               />
                             </div>
@@ -1565,10 +1577,10 @@ export default function SummerResearchTrackerApp() {
                               />
                             </TableCell>
                             <TableCell>
-                              <Input
-                                type="date"
-                                value={o.firstContact}
-                                onChange={(e) => updateOutreach(o.id, { firstContact: e.target.value })}
+                              <DatePickerComponent
+                                selected={stringToDate(o.firstContact)}
+                                onChange={(date) => updateOutreach(o.id, { firstContact: dateToString(date) })}
+                                placeholderText="First contact"
                                 className="h-8"
                               />
                             </TableCell>
@@ -1584,10 +1596,10 @@ export default function SummerResearchTrackerApp() {
                                 className="h-8 rounded-md border border-input bg-background px-2 text-sm"
                               />
                               <div className="mt-2">
-                                <Input
-                                  type="date"
-                                  value={o.replyDate}
-                                  onChange={(e) => updateOutreach(o.id, { replyDate: e.target.value })}
+                                <DatePickerComponent
+                                  selected={stringToDate(o.replyDate)}
+                                  onChange={(date) => updateOutreach(o.id, { replyDate: dateToString(date) })}
+                                  placeholderText="Reply date"
                                   className="h-8"
                                 />
                               </div>
@@ -1603,10 +1615,10 @@ export default function SummerResearchTrackerApp() {
                               />
                             </TableCell>
                             <TableCell>
-                              <Input
-                                type="date"
-                                value={o.nextFollowUp}
-                                onChange={(e) => updateOutreach(o.id, { nextFollowUp: e.target.value })}
+                              <DatePickerComponent
+                                selected={stringToDate(o.nextFollowUp)}
+                                onChange={(date) => updateOutreach(o.id, { nextFollowUp: dateToString(date) })}
+                                placeholderText="Next follow-up"
                                 className="h-8"
                               />
                             </TableCell>
@@ -1755,10 +1767,10 @@ export default function SummerResearchTrackerApp() {
                               />
                             </TableCell>
                             <TableCell>
-                              <Input
-                                type="date"
-                                value={m.due}
-                                onChange={(e) => updateMaterial(m.id, { due: e.target.value })}
+                              <DatePickerComponent
+                                selected={stringToDate(m.due)}
+                                onChange={(date) => updateMaterial(m.id, { due: dateToString(date) })}
+                                placeholderText="Due date"
                                 className="h-8"
                               />
                             </TableCell>
@@ -2064,11 +2076,19 @@ function ProjectDetailsDialog({
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-2">
                 <Label>DDL</Label>
-                <Input type="date" value={project.ddl} onChange={(e) => onUpdate({ ddl: e.target.value })} />
+                <DatePickerComponent
+                  selected={stringToDate(project.ddl)}
+                  onChange={(date) => onUpdate({ ddl: dateToString(date) })}
+                  placeholderText="Select DDL"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Next Action Date</Label>
-                <Input type="date" value={project.nextActionDate} onChange={(e) => onUpdate({ nextActionDate: e.target.value })} />
+                <DatePickerComponent
+                  selected={stringToDate(project.nextActionDate)}
+                  onChange={(date) => onUpdate({ nextActionDate: dateToString(date) })}
+                  placeholderText="Select next action date"
+                />
               </div>
             </div>
 
@@ -2642,7 +2662,11 @@ function OutreachDetailsDialog({
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-2">
                 <Label>First Contact</Label>
-                <Input type="date" value={outreach.firstContact} onChange={(e) => onUpdate({ firstContact: e.target.value })} />
+                <DatePickerComponent
+                  selected={stringToDate(outreach.firstContact)}
+                  onChange={(date) => onUpdate({ firstContact: dateToString(date) })}
+                  placeholderText="Select first contact date"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Email Version</Label>
@@ -2665,7 +2689,11 @@ function OutreachDetailsDialog({
               </div>
               <div className="space-y-2">
                 <Label>Reply Date</Label>
-                <Input type="date" value={outreach.replyDate} onChange={(e) => onUpdate({ replyDate: e.target.value })} />
+                <DatePickerComponent
+                  selected={stringToDate(outreach.replyDate)}
+                  onChange={(date) => onUpdate({ replyDate: dateToString(date) })}
+                  placeholderText="Select reply date"
+                />
               </div>
             </div>
 
@@ -2689,7 +2717,11 @@ function OutreachDetailsDialog({
               </div>
               <div className="space-y-2">
                 <Label>Next Follow-up</Label>
-                <Input type="date" value={outreach.nextFollowUp} onChange={(e) => onUpdate({ nextFollowUp: e.target.value })} />
+                <DatePickerComponent
+                  selected={stringToDate(outreach.nextFollowUp)}
+                  onChange={(date) => onUpdate({ nextFollowUp: dateToString(date) })}
+                  placeholderText="Select next follow-up date"
+                />
               </div>
             </div>
 
