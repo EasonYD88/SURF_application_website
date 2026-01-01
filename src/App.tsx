@@ -545,8 +545,8 @@ function Pill({ children }: { children: React.ReactNode }) {
 
 function SectionTitle({ title, right }: { title: string; right?: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <div className="text-lg font-semibold tracking-tight">{title}</div>
+    <div className="flex items-center justify-between gap-4">
+      <div className="text-xl font-bold tracking-tight text-foreground">{title}</div>
       {right}
     </div>
   );
@@ -562,12 +562,12 @@ function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <Card className="border-dashed">
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
+    <Card className="border-dashed border-border/50 bg-muted/20 shadow-sm">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg font-semibold text-muted-foreground">{title}</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
-        {desc ? <div className="text-sm text-muted-foreground">{desc}</div> : null}
+      <CardContent className="space-y-4">
+        {desc ? <div className="text-sm text-muted-foreground leading-relaxed">{desc}</div> : null}
         {action}
       </CardContent>
     </Card>
@@ -599,7 +599,7 @@ function SelectBox({
       onChange={(e) => onValueChange(e.target.value)}
       className={
         className ||
-        "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+        "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pr-6 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOCIgaGVpZ2h0PSI2IiB2aWV3Qm94PSIwIDAgOCA2IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxwYXRoIGQ9Ik0xIDFMNCB0TDcgMSIgc3Ryb2tlPSIjNjk3Mzg0IiBzdHJva2Utd2lkdGg9IjEuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PC9zdmc+')] bg-no-repeat bg-right-2 bg-center"
       }
     >
       {placeholder !== undefined ? (
@@ -634,6 +634,8 @@ export default function SummerResearchTrackerApp() {
   const [decisionFilter, setDecisionFilter] = useState<"Apply" | "Maybe" | "No" | "ALL">(
     "ALL"
   );
+
+  const [viewingDecision, setViewingDecision] = useState<Decision | null>(null);
 
   useEffect(() => {
     saveStore(store);
@@ -709,8 +711,15 @@ export default function SummerResearchTrackerApp() {
       .sort((a, b) => parseDateOrInf(a.nextActionDate) - parseDateOrInf(b.nextActionDate))
       .slice(0, 6);
 
-    return { counts, nextDDL, upcomingFollowUps, tasksDue, actions };
-  }, [store.projects, store.outreach, store.materials]);
+    const decisionStats = {
+      total: store.decisions.length,
+      apply: store.decisions.filter(d => d.conclusion === "Apply").length,
+      maybe: store.decisions.filter(d => d.conclusion === "Maybe").length,
+      no: store.decisions.filter(d => d.conclusion === "No").length,
+    };
+
+    return { counts, nextDDL, upcomingFollowUps, tasksDue, actions, decisionStats };
+  }, [store.projects, store.outreach, store.materials, store.decisions]);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -1065,42 +1074,45 @@ export default function SummerResearchTrackerApp() {
 
 
   return (
-    <div className="min-h-screen w-full bg-background">
-      <div className="mx-auto max-w-7xl p-4 md:p-6 lg:p-8 space-y-6">
+    <div className="min-h-screen w-full bg-gradient-to-br from-background to-muted/20">
+      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8 space-y-8">
         {/* Header */}
-        <div className="flex flex-col gap-4 pb-4 border-b">
+        <div className="flex flex-col gap-6 pb-6 border-b border-border/50 bg-card/50 backdrop-blur-sm rounded-lg p-6 shadow-sm">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Summer Research Application Tracker</h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+              Summer Research Application Tracker
+            </h1>
+            <p className="text-muted-foreground mt-2 text-base">
               Notion-like databases + dashboard · Local-only (saved to browser) · Export/Import JSON
             </p>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="relative flex-1 min-w-[200px] max-w-[300px]">
-              <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-[240px] max-w-[320px]">
+              <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Search projects / PIs / keywords..."
-                className="pl-9 w-full"
+                className="pl-10 h-11 border-border/50 focus:border-primary/50 transition-colors"
               />
             </div>
 
-            <div className="flex items-center gap-2 px-2">
+            <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-md">
               <Checkbox 
                 id="upcoming-filter"
                 checked={showOnlyUpcoming} 
                 onCheckedChange={(v) => setShowOnlyUpcoming(Boolean(v))} 
+                className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
               />
-              <Label htmlFor="upcoming-filter" className="text-sm text-muted-foreground cursor-pointer">
+              <Label htmlFor="upcoming-filter" className="text-sm font-medium cursor-pointer select-none">
                 Upcoming only
               </Label>
             </div>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
+                <Button variant="outline" className="gap-2 h-10 px-4">
                   <Filter className="h-4 w-4" /> Filters
                 </Button>
               </DropdownMenuTrigger>
@@ -1147,7 +1159,7 @@ export default function SummerResearchTrackerApp() {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
+                <Button variant="outline" className="gap-2 h-10 px-4">
                   <Settings className="h-4 w-4" /> Data
                 </Button>
               </DropdownMenuTrigger>
@@ -1184,20 +1196,33 @@ export default function SummerResearchTrackerApp() {
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-6">
-          <TabsList className="grid grid-cols-2 md:grid-cols-5 w-full h-auto">
-            <TabsTrigger value="dashboard" className="text-xs md:text-sm">Dashboard</TabsTrigger>
-            <TabsTrigger value="projects" className="text-xs md:text-sm">Projects</TabsTrigger>
-            <TabsTrigger value="outreach" className="text-xs md:text-sm">PI Outreach</TabsTrigger>
-            <TabsTrigger value="materials" className="text-xs md:text-sm">Materials</TabsTrigger>
-            <TabsTrigger value="decisions" className="text-xs md:text-sm">Decision & Review</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-8">
+          <TabsList className="grid grid-cols-2 md:grid-cols-5 w-full h-12 bg-muted/50 p-1 rounded-xl">
+            <TabsTrigger value="dashboard" className="text-sm font-medium rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
+              Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="projects" className="text-sm font-medium rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
+              Projects
+            </TabsTrigger>
+            <TabsTrigger value="outreach" className="text-sm font-medium rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
+              PI Outreach
+            </TabsTrigger>
+            <TabsTrigger value="materials" className="text-sm font-medium rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
+              Materials
+            </TabsTrigger>
+            <TabsTrigger value="decisions" className="text-sm font-medium rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
+              Decision & Review
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="dashboard" className="space-y-6 mt-6">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Status Overview</CardTitle>
+          <TabsContent value="dashboard" className="space-y-8 mt-8">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <Card className="shadow-sm border-border/50 hover:shadow-md transition-shadow cursor-pointer" onClick={() => setActiveTab("projects")}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    Status Overview
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {STATUS_LIST.map((s) => (
@@ -1209,22 +1234,25 @@ export default function SummerResearchTrackerApp() {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Next Deadline</CardTitle>
+              <Card className="shadow-sm border-border/50 hover:shadow-md transition-shadow cursor-pointer" onClick={() => setActiveTab("projects")}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                    Next Deadline
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
+                <CardContent className="space-y-3">
                   {dashboard.nextDDL ? (
                     <>
-                      <div className="text-sm font-medium">
+                      <div className="text-base font-medium text-foreground">
                         {dashboard.nextDDL.projectId} · {dashboard.nextDDL.name}
                       </div>
                       <div className="text-sm text-muted-foreground">
                         {dashboard.nextDDL.institution} · {dashboard.nextDDL.region}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        <div className="text-sm">DDL: {dashboard.nextDDL.ddl || "—"}</div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Calendar className="h-4 w-4 text-red-500" />
+                        <span className="font-medium">DDL: {dashboard.nextDDL.ddl || "—"}</span>
                       </div>
                       <div className="flex gap-2 flex-wrap">
                         <Pill>{dashboard.nextDDL.status}</Pill>
@@ -1238,18 +1266,21 @@ export default function SummerResearchTrackerApp() {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Upcoming Actions</CardTitle>
+              <Card className="shadow-sm border-border/50 hover:shadow-md transition-shadow cursor-pointer" onClick={() => setActiveTab("projects")}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                    Upcoming Actions
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
+                <CardContent className="space-y-3">
                   {dashboard.actions.length ? (
                     dashboard.actions.map((p) => (
-                      <div key={p.id} className="rounded-lg border p-2">
-                        <div className="text-sm font-medium">
+                      <div key={p.id} className="rounded-lg border border-border/50 p-3 bg-muted/30 hover:bg-muted/50 transition-colors">
+                        <div className="text-sm font-medium text-foreground">
                           {p.projectId} · {p.name}
                         </div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-xs text-muted-foreground mt-1">
                           {p.nextActionDate || "—"} · {p.nextAction || "—"}
                         </div>
                       </div>
@@ -1259,22 +1290,50 @@ export default function SummerResearchTrackerApp() {
                   )}
                 </CardContent>
               </Card>
-            </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Upcoming Follow-ups (PI)</CardTitle>
+              <Card className="shadow-sm border-border/50 hover:shadow-md transition-shadow cursor-pointer" onClick={() => setActiveTab("decisions")}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                    Decision Stats
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm">Total Decisions</div>
+                    <Pill>{dashboard.decisionStats.total}</Pill>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-green-600">Apply</div>
+                    <Pill>{dashboard.decisionStats.apply}</Pill>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-yellow-600">Maybe</div>
+                    <Pill>{dashboard.decisionStats.maybe}</Pill>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-red-600">No</div>
+                    <Pill>{dashboard.decisionStats.no}</Pill>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-sm border-border/50 hover:shadow-md transition-shadow cursor-pointer" onClick={() => setActiveTab("outreach")}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    Upcoming Follow-ups (PI)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
                   {dashboard.upcomingFollowUps.length ? (
                     dashboard.upcomingFollowUps.map((o) => (
-                      <div key={o.id} className="rounded-lg border p-2">
-                        <div className="text-sm font-medium">
+                      <div key={o.id} className="rounded-lg border border-border/50 p-3 bg-muted/30 hover:bg-muted/50 transition-colors">
+                        <div className="text-sm font-medium text-foreground">
                           {o.outreachId} · {o.piName}
                         </div>
-                        <div className="text-xs text-muted-foreground">{o.institution}</div>
-                        <div className="text-xs">
+                        <div className="text-xs text-muted-foreground mt-1">{o.institution}</div>
+                        <div className="text-xs mt-1 text-muted-foreground">
                           Next: {o.nextFollowUp || "—"} · {o.nextAction || "—"}
                         </div>
                       </div>
@@ -1285,21 +1344,24 @@ export default function SummerResearchTrackerApp() {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Tasks Due (Materials)</CardTitle>
+              <Card className="shadow-sm border-border/50 hover:shadow-md transition-shadow cursor-pointer" onClick={() => setActiveTab("materials")}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                    Tasks Due (Materials)
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
+                <CardContent className="space-y-3">
                   {dashboard.tasksDue.length ? (
                     dashboard.tasksDue.map((m) => (
-                      <div key={m.id} className="rounded-lg border p-2">
-                        <div className="text-sm font-medium">
+                      <div key={m.id} className="rounded-lg border border-border/50 p-3 bg-muted/30 hover:bg-muted/50 transition-colors">
+                        <div className="text-sm font-medium text-foreground">
                           {m.taskId} · {m.type}
                         </div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-xs text-muted-foreground mt-1">
                           Due: {m.due || "—"} · {m.status}
                         </div>
-                        <div className="text-xs">Owner: {m.owner}</div>
+                        <div className="text-xs mt-1 text-muted-foreground">Owner: {m.owner}</div>
                       </div>
                     ))
                   ) : (
@@ -1310,12 +1372,12 @@ export default function SummerResearchTrackerApp() {
             </div>
           </TabsContent>
 
-          <TabsContent value="projects" className="space-y-6 mt-6">
+          <TabsContent value="projects" className="space-y-8 mt-8">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <SectionTitle
                 title={`Projects (${filteredProjects.length})`}
                 right={
-                  <Button onClick={addProject} className="gap-2 w-full sm:w-auto">
+                  <Button onClick={addProject} className="gap-2 w-full sm:w-auto shadow-sm hover:shadow-md transition-shadow">
                     <Plus className="h-4 w-4" /> Add Project
                   </Button>
                 }
@@ -1323,24 +1385,24 @@ export default function SummerResearchTrackerApp() {
             </div>
 
             {filteredProjects.length ? (
-              <div className="border rounded-lg overflow-hidden bg-card">
+              <div className="border border-border/50 rounded-xl overflow-hidden bg-card shadow-sm">
                 <div className="overflow-x-auto scrollbar-hide">
                   <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="min-w-[130px]">ID</TableHead>
-                        <TableHead className="min-w-[200px]">Name</TableHead>
-                        <TableHead className="min-w-[160px]">Institution</TableHead>
-                        <TableHead className="min-w-[110px]">DDL</TableHead>
-                        <TableHead className="min-w-[140px]">Status</TableHead>
-                        <TableHead className="min-w-[120px]">Priority</TableHead>
-                        <TableHead className="min-w-[210px]">Next Action</TableHead>
-                        <TableHead className="w-[100px]">Actions</TableHead>
+                    <TableHeader className="bg-muted/50">
+                      <TableRow className="hover:bg-muted/30">
+                        <TableHead className="min-w-[130px] font-semibold text-foreground">ID</TableHead>
+                        <TableHead className="min-w-[200px] font-semibold text-foreground">Name</TableHead>
+                        <TableHead className="min-w-[160px] font-semibold text-foreground">Institution</TableHead>
+                        <TableHead className="min-w-[110px] font-semibold text-foreground">DDL</TableHead>
+                        <TableHead className="min-w-[140px] font-semibold text-foreground">Status</TableHead>
+                        <TableHead className="min-w-[120px] font-semibold text-foreground">Priority</TableHead>
+                        <TableHead className="min-w-[210px] font-semibold text-foreground">Next Action</TableHead>
+                        <TableHead className="w-[100px] font-semibold text-foreground">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredProjects.map((p) => (
-                        <TableRow key={p.id}>
+                        <TableRow key={p.id} className="hover:bg-muted/30 transition-colors">
                           <TableCell className="font-medium">
                             <Input
                               value={p.projectId}
@@ -1511,12 +1573,12 @@ export default function SummerResearchTrackerApp() {
             )}
           </TabsContent>
 
-          <TabsContent value="outreach" className="space-y-6 mt-6">
+          <TabsContent value="outreach" className="space-y-8 mt-8">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <SectionTitle
                 title={`PI Outreach (${store.outreach.length})`}
                 right={
-                  <Button onClick={() => addOutreach()} className="gap-2 w-full sm:w-auto">
+                  <Button onClick={() => addOutreach()} className="gap-2 w-full sm:w-auto shadow-sm hover:shadow-md transition-shadow">
                     <Plus className="h-4 w-4" /> Add Outreach
                   </Button>
                 }
@@ -1662,12 +1724,12 @@ export default function SummerResearchTrackerApp() {
             )}
           </TabsContent>
 
-          <TabsContent value="materials" className="space-y-6 mt-6">
+          <TabsContent value="materials" className="space-y-8 mt-8">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <SectionTitle
                 title={`Materials (${store.materials.length})`}
                 right={
-                  <Button onClick={() => addMaterial()} className="gap-2 w-full sm:w-auto">
+                  <Button onClick={() => addMaterial()} className="gap-2 w-full sm:w-auto shadow-sm hover:shadow-md transition-shadow">
                     <Plus className="h-4 w-4" /> Add Task
                   </Button>
                 }
@@ -1815,7 +1877,7 @@ export default function SummerResearchTrackerApp() {
             )}
           </TabsContent>
 
-          <TabsContent value="decisions" className="space-y-6 mt-6">
+          <TabsContent value="decisions" className="space-y-8 mt-8">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <SectionTitle
                 title={`Decision & Review (${store.decisions.length})`}
@@ -1844,54 +1906,27 @@ export default function SummerResearchTrackerApp() {
                     const p = projectsById.get(d.projectInternalId);
                     if (!p) return null;
                     return (
-                      <Card key={d.id} className="overflow-hidden">
-                        <CardHeader>
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <CardTitle className="text-base">
+                      <Card key={d.id} className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onClick={() => setViewingDecision(d)}>
+                        <CardHeader className="pb-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <CardTitle className="text-base truncate">
                                 {p.projectId} · {p.name || "(untitled)"}
                               </CardTitle>
-                              <div className="text-xs text-muted-foreground">
+                              <div className="text-xs text-muted-foreground truncate">
                                 {p.institution} · {p.region}
                               </div>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex flex-col gap-1 items-end">
                               <Pill>{d.conclusion}</Pill>
                               <Pill>{d.priority}</Pill>
                             </div>
                           </div>
                         </CardHeader>
-                        <CardContent className="space-y-3">
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <Label className="text-xs">Conclusion</Label>
-                              <SelectBox
-                                value={d.conclusion}
-                                onValueChange={(v) => {
-                                  updateDecision(d.id, { conclusion: v as any });
-                                  updateProject(p.id, { decision: v as any });
-                                }}
-                                options={DECISION_OPTIONS}
-                                className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-xs">Priority</Label>
-                              <SelectBox
-                                value={d.priority}
-                                onValueChange={(v) => {
-                                  updateDecision(d.id, { priority: v as any });
-                                  updateProject(p.id, { priority: v as any });
-                                }}
-                                options={PRIORITIES.map((pr) => ({ value: pr, label: pr }))}
-                                className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-                              />
-                            </div>
+                        <CardContent className="pt-0">
+                          <div className="text-xs text-muted-foreground">
+                            Click to view details and edit
                           </div>
-
-                          <Separator />
-
-                          <DecisionEditor d={d} p={p} onUpdate={(patch) => updateDecision(d.id, patch)} />
                         </CardContent>
                       </Card>
                     );
@@ -1905,6 +1940,15 @@ export default function SummerResearchTrackerApp() {
             )}
           </TabsContent>
         </Tabs>
+
+        {viewingDecision && (
+          <DecisionDetailsDialog
+            decision={viewingDecision}
+            project={projectsById.get(viewingDecision.projectInternalId)!}
+            onUpdate={(patch) => updateDecision(viewingDecision.id, patch)}
+            onClose={() => setViewingDecision(null)}
+          />
+        )}
 
         <footer className="pt-6 mt-6 border-t">
           <p className="text-xs text-muted-foreground text-center">
@@ -1932,7 +1976,7 @@ function DecisionCreateDialog({
           <Plus className="h-4 w-4" /> New Decision Card
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create a decision card</DialogTitle>
           <DialogDescription>Pick a project and we will create a linked decision template.</DialogDescription>
@@ -2038,56 +2082,58 @@ function ProjectDetailsDialog({
           </svg>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Project Details · {project.projectId}</DialogTitle>
           <DialogDescription>Edit everything in one place; link outreach and materials.</DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-3">
+        <div className="grid gap-6 md:grid-cols-2">
+          <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Name</Label>
-              <Input value={project.name} onChange={(e) => onUpdate({ name: e.target.value })} placeholder="Project name" />
+              <Label className="text-sm font-medium">Name</Label>
+              <Input value={project.name} onChange={(e) => onUpdate({ name: e.target.value })} placeholder="Project name" className="h-11" />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>Institution</Label>
-                <Input value={project.institution} onChange={(e) => onUpdate({ institution: e.target.value })} />
+                <Label className="text-sm font-medium">Institution</Label>
+                <Input value={project.institution} onChange={(e) => onUpdate({ institution: e.target.value })} className="h-11" />
               </div>
               <div className="space-y-2">
-                <Label>Region</Label>
-                <Input value={project.region} onChange={(e) => onUpdate({ region: e.target.value })} />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-2">
-                <Label>Type</Label>
-                <Input value={project.type} onChange={(e) => onUpdate({ type: e.target.value })} placeholder="Summer Program / Visiting" />
-              </div>
-              <div className="space-y-2">
-                <Label>Round</Label>
-                <Input value={project.round} onChange={(e) => onUpdate({ round: e.target.value })} placeholder="Round 1 / Rolling" />
+                <Label className="text-sm font-medium">Region</Label>
+                <Input value={project.region} onChange={(e) => onUpdate({ region: e.target.value })} className="h-11" />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>DDL</Label>
+                <Label className="text-sm font-medium">Type</Label>
+                <Input value={project.type} onChange={(e) => onUpdate({ type: e.target.value })} placeholder="Summer Program / Visiting" className="h-11" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Round</Label>
+                <Input value={project.round} onChange={(e) => onUpdate({ round: e.target.value })} placeholder="Round 1 / Rolling" className="h-11" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">DDL</Label>
                 <DatePickerComponent
                   selected={stringToDate(project.ddl)}
                   onChange={(date) => onUpdate({ ddl: dateToString(date) })}
                   placeholderText="Select DDL"
+                  className="h-11"
                 />
               </div>
               <div className="space-y-2">
-                <Label>Next Action Date</Label>
+                <Label className="text-sm font-medium">Next Action Date</Label>
                 <DatePickerComponent
                   selected={stringToDate(project.nextActionDate)}
                   onChange={(date) => onUpdate({ nextActionDate: dateToString(date) })}
                   placeholderText="Select next action date"
+                  className="h-11"
                 />
               </div>
             </div>
@@ -2638,7 +2684,7 @@ function OutreachDetailsDialog({
           </svg>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Outreach Details · {outreach.outreachId}</DialogTitle>
           <DialogDescription>Track emails, replies, and follow-ups.</DialogDescription>
@@ -2828,7 +2874,7 @@ function MaterialDetailsDialog({
           </Button>
         </DialogTrigger>
       )}
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Material Task · {task.taskId}</DialogTitle>
           <DialogDescription>
@@ -2942,6 +2988,56 @@ function DecisionEditor({
         Tip: keep each box short and actionable. For {p.projectId}, ensure Next Action Date is set.
       </div>
     </div>
+  );
+}
+
+function DecisionDetailsDialog({
+  decision,
+  project,
+  onUpdate,
+  onClose,
+}: {
+  decision: Decision;
+  project: Project;
+  onUpdate: (patch: Partial<Decision>) => void;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Decision Details · {project.projectId}</DialogTitle>
+          <DialogDescription>
+            Review and edit decision rationale for {project.name || "(untitled)"}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Conclusion</Label>
+              <SelectBox
+                value={decision.conclusion}
+                onValueChange={(v) => onUpdate({ conclusion: v as any })}
+                options={DECISION_OPTIONS}
+                className="h-9"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Priority</Label>
+              <SelectBox
+                value={decision.priority}
+                onValueChange={(v) => onUpdate({ priority: v as any })}
+                options={PRIORITIES.map((pr) => ({ value: pr, label: pr }))}
+                className="h-9"
+              />
+            </div>
+          </div>
+
+          <DecisionEditor d={decision} p={project} onUpdate={onUpdate} />
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
