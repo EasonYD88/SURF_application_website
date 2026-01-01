@@ -116,6 +116,7 @@ type Outreach = {
   nextAction: string;
   projectIds: ID[];
   notes: string;
+  threadId?: string;
 };
 
 type MaterialStatus = "未开始" | "草稿" | "已修改" | "定稿" | "已提交";
@@ -636,10 +637,35 @@ export default function SummerResearchTrackerApp() {
   );
 
   const [viewingDecision, setViewingDecision] = useState<Decision | null>(null);
+  const [followupReminders, setFollowupReminders] = useState<any[]>([]);
 
   useEffect(() => {
     saveStore(store);
   }, [store]);
+
+  // Check for follow-ups on mount and every hour
+  useEffect(() => {
+    const checkFollowups = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/check-followups', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ outreachList: store.outreach }),
+        });
+        const data = await response.json();
+        if (data.results && data.results.length > 0) {
+          setFollowupReminders(data.results);
+        }
+      } catch (error) {
+        console.error('Failed to check follow-ups:', error);
+      }
+    };
+
+    checkFollowups();
+    const interval = setInterval(checkFollowups, 60 * 60 * 1000); // Check every hour
+
+    return () => clearInterval(interval);
+  }, [store.outreach]);
 
   const projectsById = useMemo(
     () => new Map(store.projects.map((p) => [p.id, p] as const)),
@@ -1370,6 +1396,42 @@ export default function SummerResearchTrackerApp() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Follow-up Reminders Alert */}
+            {followupReminders.length > 0 && (
+              <Card className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg font-semibold flex items-center gap-2 text-yellow-700 dark:text-yellow-400">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+                    Follow-up Reminders ({followupReminders.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {followupReminders.map((reminder, idx) => (
+                    <div key={idx} className="rounded-lg border border-yellow-300 p-3 bg-white dark:bg-gray-900">
+                      <div className="text-sm font-medium text-foreground">
+                        {reminder.piName}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {reminder.message}
+                      </div>
+                      {reminder.needsFollowup && (
+                        <Badge variant="destructive" className="mt-2 text-xs">
+                          Action Required
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => setFollowupReminders([])}
+                  >
+                    Dismiss All
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="projects" className="space-y-8 mt-8">
@@ -2702,7 +2764,38 @@ function OutreachDetailsDialog({
             </div>
             <div className="space-y-2">
               <Label>Contact</Label>
-              <Input value={outreach.contact} onChange={(e) => onUpdate({ contact: e.target.value })} placeholder="Email / form link" />
+              <div className="flex gap-2">
+                <Input value={outreach.contact} onChange={(e) => onUpdate({ contact: e.target.value })} placeholder="Email / form link" />
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    if (outreach.contact && outreach.contact.includes('@')) {
+                      try {
+                        const response = await fetch('http://localhost:3001/send-email', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            to: outreach.contact,
+                            subject: `Inquiry about ${outreach.piName}'s research opportunities`,
+                            body: `Dear ${outreach.piName},\n\nI am interested in your research on ${outreach.directions?.join(', ') || 'your work'}. Could you please provide more information about potential opportunities?\n\nBest regards,\n[Your Name]`
+                          }),
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                          alert('Email sent successfully');
+                          onUpdate({ stage: 'Sent', nextFollowUp: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], threadId: data.threadId });
+                        }
+                      } catch (error) {
+                        alert('Failed to send email');
+                      }
+                    } else {
+                      window.open(`mailto:${outreach.contact}`);
+                    }
+                  }}
+                >
+                  Send Email
+                </Button>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -2723,15 +2816,40 @@ function OutreachDetailsDialog({
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-2">
                 <Label>Reply Status</Label>
-                <SelectBox
-                  value={outreach.replied}
-                  onValueChange={(v) => onUpdate({ replied: v as any })}
-                  options={[
-                    { value: "No reply", label: "No reply" },
-                    { value: "Replied", label: "Replied" },
-                    { value: "Auto-reply", label: "Auto-reply" },
-                  ]}
-                />
+                <div className="flex gap-2">
+                  <SelectBox
+                    value={outreach.replied}
+                    onValueChange={(v) => onUpdate({ replied: v as any })}
+                    options={[
+                      { value: "No reply", label: "No reply" },
+                      { value: "Replied", label: "Replied" },
+                      { value: "Auto-reply", label: "Auto-reply" },
+                    ]}
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={async () => {
+                      if (outreach.threadId) {
+                        try {
+                          const response = await fetch(`http://localhost:3001/check-replies/${outreach.threadId}`);
+                          const data = await response.json();
+                          if (data.replies.length > 0) {
+                            alert(`Found ${data.replies.length} reply(s)`);
+                            onUpdate({ replied: 'Replied', replyDate: new Date().toISOString().split('T')[0] });
+                          } else {
+                            alert('No new replies');
+                          }
+                        } catch (error) {
+                          alert('Failed to check replies');
+                        }
+                      } else {
+                        alert('No thread ID available');
+                      }
+                    }}
+                  >
+                    Check Replies
+                  </Button>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Reply Date</Label>
@@ -2890,7 +3008,67 @@ function MaterialDetailsDialog({
             </div>
             <div className="space-y-2">
               <Label>Link / Attachment</Label>
-              <Input value={task.link} onChange={(e) => onUpdate({ link: e.target.value })} placeholder="Drive/Notion link" />
+              <div className="flex gap-2">
+                <Input value={task.link} onChange={(e) => onUpdate({ link: e.target.value })} placeholder="Drive/Notion link or uploaded file URL" />
+                <input
+                  type="file"
+                  id="file-upload"
+                  style={{ display: 'none' }}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const formData = new FormData();
+                      formData.append('file', file);
+                      try {
+                        const response = await fetch('http://localhost:3001/upload', {
+                          method: 'POST',
+                          body: formData,
+                        });
+                        const data = await response.json();
+                        onUpdate({ link: data.link });
+                      } catch (error) {
+                        alert('Upload failed');
+                      }
+                    }
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => document.getElementById('file-upload')?.click()}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload Local
+                </Button>
+                <input
+                  type="file"
+                  id="drive-upload"
+                  style={{ display: 'none' }}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const formData = new FormData();
+                      formData.append('file', file);
+                      try {
+                        const response = await fetch('http://localhost:3001/upload-drive', {
+                          method: 'POST',
+                          body: formData,
+                        });
+                        const data = await response.json();
+                        onUpdate({ link: data.link });
+                      } catch (error) {
+                        alert('Drive upload failed');
+                      }
+                    }
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => document.getElementById('drive-upload')?.click()}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload to Drive
+                </Button>
+              </div>
             </div>
           </div>
 

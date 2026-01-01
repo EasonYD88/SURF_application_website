@@ -1,1 +1,9 @@
 node_modules
+dist
+.DS_Store
+
+# Server sensitive files
+server/credentials.json
+server/token.json
+server/uploads/*
+!server/uploads/.gitkeep

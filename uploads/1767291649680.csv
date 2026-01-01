@@ -1,0 +1,5 @@
+ProjectID,Name,Institution,Region,Type,DDL,Funding,Status,Fit,Risk,ROI,Priority,Decision,NextAction,NextActionDate,OfficialLink
+SR-2026-04,,,,,,,Prospecting,0,0,0,Medium,Maybe,,,
+SR-2026-03,SURF at Caltech,Caltech,,Summer Program,2026-02-22,,Prospecting,0,0,0,Medium,Maybe,,,https://sfp.caltech.edu/undergraduate-research/programs/surf/application_information
+SR-2026-02,The Stanford Summer Research Program in Biomedical Sciences (SSRP),Stanford,USA,Summer  Programs,2026-02-01,,Prospecting,0,0,0,Medium,Maybe,,,https://biosciences.stanford.edu/pathways/ssrp-amgen-scholars-program/
+SR-2026-01,MIT Summer Research Program (MSRP),MIT,USA,Summer Research Program,2025-12-05,,Prospecting,8.9,7,9,High,Apply,,2026-01-14,https://example.edu/summer-research
