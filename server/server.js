@@ -176,11 +176,6 @@ app.get(/^\/files\/(.*)/, (req, res) => {
   }
 });
 
-// Ensure uploads directory exists
-if (!fs.existsSync(appConfig.storageRoot)) {
-  fs.mkdirSync(appConfig.storageRoot, { recursive: true });
-}
-
 // Multer setup for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {

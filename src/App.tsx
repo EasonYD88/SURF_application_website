@@ -218,66 +218,39 @@ function formatDateInput(s: string): string {
   }
 }
 
+function validateDate(year: number, month: number, day: number): boolean {
+  const date = new Date(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T00:00:00Z`);
+  return !isNaN(date.getTime()) && date.getUTCMonth() + 1 === month && date.getUTCDate() === day;
+}
+
 function parseDateInput(s: string): string {
   if (!s) return "";
   const cleaned = s.replace(/[^\d]/g, '');
+  const year = new Date().getFullYear();
   
-  // 完整格式: MMDDYYYY (8位数字)
+  // MMDDYYYY format (8 digits)
   if (cleaned.length === 8) {
-    const month = cleaned.slice(0, 2);
-    const day = cleaned.slice(2, 4);
-    const year = cleaned.slice(4, 8);
-    const date = new Date(`${year}-${month}-${day}`);
-    if (!isNaN(date.getTime()) && 
-        date.getMonth() + 1 === parseInt(month) && 
-        date.getDate() === parseInt(day)) {
-      return `${month}/${day}/${year}`;
-    }
+    const m = parseInt(cleaned.slice(0, 2)), d = parseInt(cleaned.slice(2, 4)), y = parseInt(cleaned.slice(4, 8));
+    if (validateDate(y, m, d)) return `${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}/${y}`;
   }
   
-  // 支持 MM/DD/YYYY 或 M/D/YYYY 格式
-  const slashFormat = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (slashFormat) {
-    const [, month, day, year] = slashFormat;
-    const date = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
-    if (!isNaN(date.getTime()) && 
-        date.getMonth() + 1 === parseInt(month) && 
-        date.getDate() === parseInt(day)) {
-      return `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
-    }
+  // MM/DD/YYYY or M/D/YYYY format
+  const slashMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slashMatch) {
+    const m = parseInt(slashMatch[1]), d = parseInt(slashMatch[2]), y = parseInt(slashMatch[3]);
+    if (validateDate(y, m, d)) return `${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}/${y}`;
   }
   
-  // 支持 MM/DD 格式，自动补充当前年份
-  const shortFormat = s.match(/^(\d{1,2})\/(\d{1,2})$/);
-  if (shortFormat) {
-    const [, month, day] = shortFormat;
-    const currentYear = new Date().getFullYear();
-    const date = new Date(`${currentYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
-    if (!isNaN(date.getTime()) && 
-        date.getMonth() + 1 === parseInt(month) && 
-        date.getDate() === parseInt(day)) {
-      return `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${currentYear}`;
-    }
+  // MM/DD format (both MMDD and MM/DD variants), auto-fill current year
+  const shortMatch = s.match(/^(\d{1,2})\/(\d{1,2})$/) || (cleaned.length === 4 ? [null, cleaned.slice(0, 2), cleaned.slice(2, 4)] : null);
+  if (shortMatch) {
+    const m = parseInt(shortMatch[1]), d = parseInt(shortMatch[2]);
+    if (validateDate(year, m, d)) return `${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}/${year}`;
   }
   
-  // 支持 MMDD 格式 (4位数字)，自动补充当前年份
-  if (cleaned.length === 4) {
-    const month = cleaned.slice(0, 2);
-    const day = cleaned.slice(2, 4);
-    const currentYear = new Date().getFullYear();
-    const date = new Date(`${currentYear}-${month}-${day}`);
-    if (!isNaN(date.getTime()) && 
-        date.getMonth() + 1 === parseInt(month) && 
-        date.getDate() === parseInt(day)) {
-      return `${month}/${day}/${currentYear}`;
-    }
-  }
-  
-  // 尝试其他格式
+  // Try parsing as date object
   const date = new Date(s);
-  if (!isNaN(date.getTime())) {
-    return dateToString(date);
-  }
+  if (!isNaN(date.getTime())) return dateToString(date);
   
   return s; // 返回原始输入，让用户看到无效输入
 }
@@ -344,83 +317,114 @@ function safeStorageSet(key: string, value: string) {
 const seed = () => {
   const p1: Project = {
     id: uid("p"),
-    projectId: "SR-2026-01",
-    name: "Summer Research Internship in Computational Biology",
-    institution: "Example University",
-    region: "USA",
+    projectId: "SURF-2026-01",
+    name: "SURF at Caltech",
+    institution: "California Institute of Technology",
+    region: "USA - West Coast",
     type: "Summer Research Program",
-    officialLink: "https://example.edu/summer-research",
-    keywords: ["Computational Chemistry", "GPCR", "Docking", "ML", "Free Energy"],
-    piLab: "Dr. A. Smith — Structural Pharmacology Lab",
+    officialLink: "https://sfp.caltech.edu/programs/surf",
+    keywords: ["Physics", "Materials Science", "Quantum Computing", "Renewable Energy"],
+    piLab: "Dr. Jennifer Chen — Advanced Materials Lab",
     needsOutreach: "Yes",
-    round: "Round 1",
-    ddl: "2026-02-01",
-    period: "2026-06-01 ~ 2026-08-15",
+    round: "Single Round",
+    ddl: "2026-02-22",
+    period: "2026-06-15 ~ 2026-08-20",
     funding: ["stipend", "housing"],
-    eligibility: "Master/PhD track preferred; programming required",
-    materials: ["CV", "Research Statement", "Transcript", "2 Letters"],
+    eligibility: "Undergraduates with strong academic record; minimum GPA 3.5",
+    materials: ["CV", "Research Statement", "Transcript", "2 Letters of Recommendation"],
     portalStatus: "Open",
     status: "Preparing",
     fit: 9,
-    risk: 7,
+    risk: 6,
     roi: 9,
     priority: "High",
     decision: "Apply",
-    nextAction: "Send outreach email with CV + 1-page summary",
-    nextActionDate: "2026-01-05",
+    nextAction: "Draft outreach email to Dr. Chen with research interests",
+    nextActionDate: "2026-01-10",
     outreachIds: [],
     materialTaskIds: [],
-    notes: "Recent relevant publications; method-development friendly.",
+    notes: "Strong program with high acceptance rate for well-prepared applicants. Dr. Chen's lab focuses on sustainable energy materials.",
   };
 
   const p2: Project = {
     id: uid("p"),
-    projectId: "SR-2026-02",
-    name: "Visiting Student Research Fellowship (Chemistry)",
-    institution: "Example Institute",
-    region: "EU",
-    type: "Visiting Student",
-    officialLink: "",
-    keywords: ["Computational Chemistry", "Drug Discovery"],
-    piLab: "",
+    projectId: "REU-2026-02",
+    name: "NSF REU in Computational Neuroscience",
+    institution: "MIT",
+    region: "USA - East Coast",
+    type: "REU Program",
+    officialLink: "https://bcs.mit.edu/reu",
+    keywords: ["Neuroscience", "Machine Learning", "Brain Imaging", "Neural Networks"],
+    piLab: "Dr. Michael Zhang — Computational Brain Lab",
     needsOutreach: "Optional",
-    round: "Single",
-    ddl: "2026-01-20",
-    period: "Summer 2026",
-    funding: ["travel"],
-    eligibility: "Strong academic record; statement required",
-    materials: ["CV", "SOP", "Transcript"],
-    portalStatus: "Not Open",
+    round: "Single Round",
+    ddl: "2026-02-01",
+    period: "2026-06-01 ~ 2026-08-10",
+    funding: ["stipend", "travel", "housing"],
+    eligibility: "US citizens/permanent residents; programming experience required",
+    materials: ["CV", "Personal Statement", "Transcript", "2 Letters"],
+    portalStatus: "Open",
     status: "Prospecting",
     fit: 8,
-    risk: 6,
+    risk: 7,
     roi: 8,
     priority: "Medium",
-    decision: "Maybe",
-    nextAction: "Confirm opening date; shortlist 2 labs",
-    nextActionDate: "2025-12-28",
+    decision: "Apply",
+    nextAction: "Review lab publications and identify specific project interests",
+    nextActionDate: "2026-01-08",
     outreachIds: [],
     materialTaskIds: [],
-    notes: "Need to verify eligibility for current degree.",
+    notes: "Competitive program. Need to highlight Python/MATLAB skills and interest in neural data analysis.",
+  };
+
+  const p3: Project = {
+    id: uid("p"),
+    projectId: "INT-2026-03",
+    name: "Summer Research Internship at Max Planck Institute",
+    institution: "Max Planck Institute for Biological Intelligence",
+    region: "Europe - Germany",
+    type: "International Internship",
+    officialLink: "https://www.bi.mpg.de/internships",
+    keywords: ["Molecular Biology", "Bioinformatics", "Genomics", "Systems Biology"],
+    piLab: "",
+    needsOutreach: "Yes",
+    round: "Rolling",
+    ddl: "2026-03-01",
+    period: "2026-07-01 ~ 2026-09-30",
+    funding: ["stipend"],
+    eligibility: "International students welcome; strong biology/CS background",
+    materials: ["CV", "Motivation Letter", "Transcript", "1 Letter"],
+    portalStatus: "Open",
+    status: "Need Outreach",
+    fit: 7,
+    risk: 8,
+    roi: 7,
+    priority: "Low",
+    decision: "Maybe",
+    nextAction: "Research PIs and identify 2-3 potential advisors",
+    nextActionDate: "2026-01-20",
+    outreachIds: [],
+    materialTaskIds: [],
+    notes: "Rolling admission - need to contact PIs directly. Visa considerations for international travel.",
   };
 
   const o1: Outreach = {
     id: uid("o"),
-    outreachId: "PI-2026-01",
-    piName: "A. Smith",
-    institution: "Example University",
-    directions: ["GPCR", "Docking", "ML"],
-    contact: "asmith@example.edu",
-    firstContact: "2026-01-05",
-    emailVersion: "v2-tailored",
+    outreachId: "OUT-2026-01",
+    piName: "Dr. Jennifer Chen",
+    institution: "California Institute of Technology",
+    directions: ["Solar Cells", "Battery Materials", "Sustainable Energy"],
+    contact: "jchen@caltech.edu",
+    firstContact: "2026-01-10",
+    emailVersion: "v1-introduction",
     replied: "No reply",
     replyDate: "",
     replySummary: "",
-    stage: "Sent",
-    nextFollowUp: "2026-01-12",
-    nextAction: "Follow up with 1-page proposal summary",
+    stage: "Drafting",
+    nextFollowUp: "2026-01-17",
+    nextAction: "Send initial email introducing research background",
     projectIds: [],
-    notes: "Keep email concise; include 2 most relevant outputs.",
+    notes: "Read recent Nature Energy paper. Mention interest in perovskite stability research.",
   };
 
   const m1: MaterialTask = {
@@ -428,12 +432,12 @@ const seed = () => {
     taskId: "MAT-01",
     type: "CV",
     targetProject: "通用",
-    status: "已修改",
-    version: "v2",
-    due: "2026-01-10",
+    status: "未开始",
+    version: "v3",
+    due: "2026-01-15",
     dependency: "",
     link: "",
-    notes: "Add 2 representative projects + skills summary.",
+    notes: "Update with latest research experience and skills. Keep to 1 page.",
   };
 
   const m2: MaterialTask = {
@@ -443,25 +447,59 @@ const seed = () => {
     targetProject: p1.id,
     status: "草稿",
     version: "v1",
-    due: "2026-01-15",
-    dependency: "Need PI focus confirmed",
+    due: "2026-02-01",
+    dependency: "Need to finalize project direction with Dr. Chen",
     link: "",
-    notes: "Emphasize compute→experiment loop.",
+    notes: "Focus on sustainable materials angle. Include specific project proposal.",
+  };
+
+  const m3: MaterialTask = {
+    id: uid("m"),
+    taskId: "MAT-03",
+    type: "SOP",
+    targetProject: p2.id,
+    status: "未开始",
+    version: "v1",
+    due: "2026-01-25",
+    dependency: "MAT-01",
+    link: "",
+    notes: "Emphasize computational skills and neuroscience passion. Connect past experiences.",
   };
 
   const d1: Decision = {
     id: uid("d"),
-    projectInternalId: p2.id,
+    projectInternalId: p1.id,
     conclusion: "Apply",
-    priority: "Medium",
+    priority: "High",
     whyApply:
-      "- Strong alignment with computational chemistry + drug discovery\n- Travel funding lowers cost\n- Clear PI/lab options once portal opens",
+      "- Excellent fit with renewable energy research interests\n- Strong mentorship and lab resources\n- High ROI with stipend and housing covered\n- Dr. Chen's recent publications align perfectly with my background",
     risks:
-      "- Early DDL and tight materials timeline\n- Competitive; may prefer PhD-only\n- Recommendation letter uncertainty",
+      "- Competitive program (~15% acceptance rate)\n- Need strong letters of recommendation\n- Early outreach critical for success",
     fitEvidence:
-      "- Prior screening + docking + assay validation experience\n- Python + modeling + free-energy familiarity\n- Potential for method benchmark + dataset curation",
+      "- Prior coursework in materials science and renewable energy\n- Research experience in battery characterization\n- Programming skills (Python, MATLAB) applicable to computational modeling\n- Genuine interest in sustainable technology",
     strategy:
-      "- Outreach: short email + 2 relevant outputs\n- Materials: tailor RS around closed-loop pipeline\n- Backup: alternative labs within same institute",
+      "- Early outreach: contact Dr. Chen by Jan 10 with specific research interests\n- Tailor research statement to perovskite stability project\n- Request recommendation letters by Jan 20\n- Submit application 1 week before deadline",
+    postResult: "",
+    timeline: "",
+    worked: "",
+    didnt: "",
+    improvements: "",
+    takeaways: "",
+  };
+
+  const d2: Decision = {
+    id: uid("d"),
+    projectInternalId: p3.id,
+    conclusion: "Maybe",
+    priority: "Low",
+    whyApply:
+      "- International experience valuable for career\n- Max Planck has excellent reputation\n- Systems biology aligns with long-term interests",
+    risks:
+      "- Visa complexity and processing time\n- No housing support - need to arrange independently\n- Language barrier potential in Germany\n- Less familiar with European academic system",
+    fitEvidence:
+      "- Strong bioinformatics coursework\n- Some genomics data analysis experience\n- Interest in computational approaches to biology",
+    strategy:
+      "- Research PIs first before committing time\n- Apply only if can identify strong advisor match\n- Consider as backup if US programs don't work out\n- Start visa research early if decide to apply",
     postResult: "",
     timeline: "",
     worked: "",
@@ -472,13 +510,14 @@ const seed = () => {
 
   p1.outreachIds = [o1.id];
   p1.materialTaskIds = [m1.id, m2.id];
+  p2.materialTaskIds = [m1.id, m3.id];
   o1.projectIds = [p1.id];
 
   return {
-    projects: [p1, p2],
+    projects: [p1, p2, p3],
     outreach: [o1],
-    materials: [m1, m2],
-    decisions: [d1],
+    materials: [m1, m2, m3],
+    decisions: [d1, d2],
     meta: {
       version: 1,
       createdAt: new Date().toISOString(),
@@ -696,6 +735,47 @@ function SelectBox({
         ))}
       </SelectContent>
     </Select>
+  );
+}
+
+function SmartDateInput({
+  value,
+  onCommit,
+  className,
+  placeholder,
+}: {
+  value: string;
+  onCommit: (v: string) => void;
+  className?: string;
+  placeholder?: string;
+}) {
+  const [temp, setTemp] = useState(value);
+  const [focus, setFocus] = useState(false);
+
+  useEffect(() => {
+    if (!focus) setTemp(value);
+  }, [value, focus]);
+
+  return (
+    <Input
+      className={className}
+      placeholder={placeholder}
+      value={focus ? temp : formatDateForDisplay(value)}
+      onFocus={() => {
+        setFocus(true);
+        setTemp(value);
+      }}
+      onChange={(e) => {
+        setTemp(formatDateInput(e.target.value));
+      }}
+      onBlur={() => {
+        setFocus(false);
+        const final = parseDateInput(temp);
+        onCommit(final);
+        setTemp(final);
+      }}
+      maxLength={10}
+    />
   );
 }
 
@@ -1804,17 +1884,11 @@ export default function SummerResearchTrackerApp() {
                           </TableCell>
 
                           <TableCell>
-                            <Input
-                              type="text"
-                              value={formatDateForDisplay(p.ddl)}
-                              onChange={(e) => {
-                                const formatted = formatDateInput(e.target.value);
-                                updateProject(p.id, { ddl: formatted });
-                              }}
-                              onBlur={(e) => updateProject(p.id, { ddl: parseDateInput(e.target.value) })}
+                            <SmartDateInput
+                              value={p.ddl}
+                              onCommit={(v) => updateProject(p.id, { ddl: v })}
                               placeholder="MM/DD"
                               className="h-8"
-                              maxLength={10}
                             />
                           </TableCell>
 
@@ -1849,17 +1923,11 @@ export default function SummerResearchTrackerApp() {
                                 placeholder="Next action"
                                 className="h-8"
                               />
-                              <Input
-                                type="text"
-                                value={formatDateForDisplay(p.nextActionDate)}
-                                onChange={(e) => {
-                                  const formatted = formatDateInput(e.target.value);
-                                  updateProject(p.id, { nextActionDate: formatted });
-                                }}
-                                onBlur={(e) => updateProject(p.id, { nextActionDate: parseDateInput(e.target.value) })}
+                              <SmartDateInput
+                                value={p.nextActionDate}
+                                onCommit={(v) => updateProject(p.id, { nextActionDate: v })}
                                 placeholder="MM/DD"
                                 className="h-8"
-                                maxLength={10}
                               />
                             </div>
                           </TableCell>
@@ -2004,17 +2072,11 @@ export default function SummerResearchTrackerApp() {
                               />
                             </TableCell>
                             <TableCell>
-                              <Input
-                                type="text"
-                                value={formatDateForDisplay(o.firstContact)}
-                                onChange={(e) => {
-                                  const formatted = formatDateInput(e.target.value);
-                                  updateOutreach(o.id, { firstContact: formatted });
-                                }}
-                                onBlur={(e) => updateOutreach(o.id, { firstContact: parseDateInput(e.target.value) })}
+                              <SmartDateInput
+                                value={o.firstContact}
+                                onCommit={(v) => updateOutreach(o.id, { firstContact: v })}
                                 placeholder="MM/DD"
                                 className="h-8"
-                                maxLength={10}
                               />
                             </TableCell>
                             <TableCell>
@@ -2028,17 +2090,11 @@ export default function SummerResearchTrackerApp() {
                                 ]}
                               />
                               <div className="mt-2">
-                                <Input
-                                  type="text"
-                                  value={formatDateForDisplay(o.replyDate)}
-                                  onChange={(e) => {
-                                    const formatted = formatDateInput(e.target.value);
-                                    updateOutreach(o.id, { replyDate: formatted });
-                                  }}
-                                  onBlur={(e) => updateOutreach(o.id, { replyDate: parseDateInput(e.target.value) })}
+                                <SmartDateInput
+                                  value={o.replyDate}
+                                  onCommit={(v) => updateOutreach(o.id, { replyDate: v })}
                                   placeholder="MM/DD"
                                   className="h-8"
-                                  maxLength={10}
                                 />
                               </div>
                             </TableCell>
@@ -2053,17 +2109,11 @@ export default function SummerResearchTrackerApp() {
                               />
                             </TableCell>
                             <TableCell>
-                              <Input
-                                type="text"
-                                value={formatDateForDisplay(o.nextFollowUp)}
-                                onChange={(e) => {
-                                  const formatted = formatDateInput(e.target.value);
-                                  updateOutreach(o.id, { nextFollowUp: formatted });
-                                }}
-                                onBlur={(e) => updateOutreach(o.id, { nextFollowUp: parseDateInput(e.target.value) })}
+                              <SmartDateInput
+                                value={o.nextFollowUp}
+                                onCommit={(v) => updateOutreach(o.id, { nextFollowUp: v })}
                                 placeholder="MM/DD"
                                 className="h-8"
-                                maxLength={10}
                               />
                             </TableCell>
                             <TableCell>
@@ -2203,17 +2253,11 @@ export default function SummerResearchTrackerApp() {
                               />
                             </TableCell>
                             <TableCell>
-                              <Input
-                                type="text"
-                                value={formatDateForDisplay(m.due)}
-                                onChange={(e) => {
-                                  const formatted = formatDateInput(e.target.value);
-                                  updateMaterial(m.id, { due: formatted });
-                                }}
-                                onBlur={(e) => updateMaterial(m.id, { due: parseDateInput(e.target.value) })}
+                              <SmartDateInput
+                                value={m.due}
+                                onCommit={(v) => updateMaterial(m.id, { due: v })}
                                 placeholder="MM/DD"
                                 className="h-8"
-                                maxLength={10}
                               />
                             </TableCell>
                             <TableCell>
@@ -2499,32 +2543,20 @@ function ProjectDetailsDialog({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label className="text-sm font-medium">DDL</Label>
-                <Input
-                  type="text"
+                <SmartDateInput
                   value={project.ddl}
-                  onChange={(e) => {
-                    const formatted = formatDateInput(e.target.value);
-                    onUpdate({ ddl: formatted });
-                  }}
-                  onBlur={(e) => onUpdate({ ddl: parseDateInput(e.target.value) })}
+                  onCommit={(v) => onUpdate({ ddl: v })}
                   placeholder="MM/DD/YYYY"
                   className="h-11"
-                  maxLength={10}
                 />
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Next Action Date</Label>
-                <Input
-                  type="text"
+                <SmartDateInput
                   value={project.nextActionDate}
-                  onChange={(e) => {
-                    const formatted = formatDateInput(e.target.value);
-                    onUpdate({ nextActionDate: formatted });
-                  }}
-                  onBlur={(e) => onUpdate({ nextActionDate: parseDateInput(e.target.value) })}
+                  onCommit={(v) => onUpdate({ nextActionDate: v })}
                   placeholder="MM/DD/YYYY"
                   className="h-11"
-                  maxLength={10}
                 />
               </div>
             </div>
@@ -3095,16 +3127,10 @@ function OutreachDetailsDialog({
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-2">
                 <Label>First Contact</Label>
-                <Input
-                  type="text"
+                <SmartDateInput
                   value={outreach.firstContact}
-                  onChange={(e) => {
-                    const formatted = formatDateInput(e.target.value);
-                    onUpdate({ firstContact: formatted });
-                  }}
-                  onBlur={(e) => onUpdate({ firstContact: parseDateInput(e.target.value) })}
+                  onCommit={(v) => onUpdate({ firstContact: v })}
                   placeholder="MM/DD/YYYY"
-                  maxLength={10}
                 />
               </div>
               <div className="space-y-2">
@@ -3153,16 +3179,10 @@ function OutreachDetailsDialog({
               </div>
               <div className="space-y-2">
                 <Label>Reply Date</Label>
-                <Input
-                  type="text"
+                <SmartDateInput
                   value={outreach.replyDate}
-                  onChange={(e) => {
-                    const formatted = formatDateInput(e.target.value);
-                    onUpdate({ replyDate: formatted });
-                  }}
-                  onBlur={(e) => onUpdate({ replyDate: parseDateInput(e.target.value) })}
+                  onCommit={(v) => onUpdate({ replyDate: v })}
                   placeholder="MM/DD/YYYY"
-                  maxLength={10}
                 />
               </div>
             </div>
@@ -3187,16 +3207,10 @@ function OutreachDetailsDialog({
               </div>
               <div className="space-y-2">
                 <Label>Next Follow-up</Label>
-                <Input
-                  type="text"
+                <SmartDateInput
                   value={outreach.nextFollowUp}
-                  onChange={(e) => {
-                    const formatted = formatDateInput(e.target.value);
-                    onUpdate({ nextFollowUp: formatted });
-                  }}
-                  onBlur={(e) => onUpdate({ nextFollowUp: parseDateInput(e.target.value) })}
+                  onCommit={(v) => onUpdate({ nextFollowUp: v })}
                   placeholder="MM/DD/YYYY"
-                  maxLength={10}
                 />
               </div>
             </div>
@@ -3314,6 +3328,14 @@ function MaterialDetailsDialog({
         <div className="space-y-3">
           <div className="grid md:grid-cols-2 gap-2">
             <div className="space-y-2">
+              <Label>Due Date</Label>
+              <SmartDateInput
+                value={task.due}
+                onCommit={(v) => onUpdate({ due: v })}
+                placeholder="MM/DD/YYYY"
+              />
+            </div>
+            <div className="space-y-2">
               <Label>Dependency</Label>
               <Input value={task.dependency} onChange={(e) => onUpdate({ dependency: e.target.value })} placeholder="E.g., confirm recommender" />
             </div>
@@ -3387,7 +3409,7 @@ function MaterialDetailsDialog({
                 </Button>
               </div>
               <p className="text-[10px] text-muted-foreground">
-                * Uploads to server/uploads/{project ? project.projectId : 'General'}/{task.type}/
+                * Uploads to configured folder/{project ? project.name : 'General'}/{task.type}.ext
               </p>
             </div>
           </div>
