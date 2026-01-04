@@ -2,11 +2,17 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DatePickerComponent } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -135,12 +141,13 @@ type MaterialTask = {
     | "Portfolio"
     | "Other";
   targetProject: ID | "通用";
-  owner: string;
   status: MaterialStatus;
   version: string;
   due: string;
   dependency: string;
   link: string;
+  fileName?: string;
+  fileLastModified?: string;
   notes: string;
 };
 
@@ -191,15 +198,75 @@ function parseDateOrNull(s: string): number | null {
   return Number.isFinite(t) ? t : null;
 }
 
-function stringToDate(s: string): Date | null {
-  if (!s) return null;
-  const d = new Date(s);
-  return isNaN(d.getTime()) ? null : d;
-}
-
 function dateToString(d: Date | null): string {
   if (!d) return "";
-  return d.toISOString().split('T')[0];
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${month}/${day}/${year}`;
+}
+
+function formatDateInput(s: string): string {
+  // 自动添加斜杠
+  const cleaned = s.replace(/[^\d]/g, '');
+  if (cleaned.length <= 2) {
+    return cleaned;
+  } else if (cleaned.length <= 4) {
+    return `${cleaned.slice(0, 2)}/${cleaned.slice(2)}`;
+  } else {
+    return `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}/${cleaned.slice(4, 8)}`;
+  }
+}
+
+function validateDate(year: number, month: number, day: number): boolean {
+  const date = new Date(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T00:00:00Z`);
+  return !isNaN(date.getTime()) && date.getUTCMonth() + 1 === month && date.getUTCDate() === day;
+}
+
+function parseDateInput(s: string): string {
+  if (!s) return "";
+  const cleaned = s.replace(/[^\d]/g, '');
+  const year = new Date().getFullYear();
+  
+  // MMDDYYYY format (8 digits)
+  if (cleaned.length === 8) {
+    const m = parseInt(cleaned.slice(0, 2)), d = parseInt(cleaned.slice(2, 4)), y = parseInt(cleaned.slice(4, 8));
+    if (validateDate(y, m, d)) return `${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}/${y}`;
+  }
+  
+  // MM/DD/YYYY or M/D/YYYY format
+  const slashMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slashMatch) {
+    const m = parseInt(slashMatch[1]), d = parseInt(slashMatch[2]), y = parseInt(slashMatch[3]);
+    if (validateDate(y, m, d)) return `${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}/${y}`;
+  }
+  
+  // MM/DD format (both MMDD and MM/DD variants), auto-fill current year
+  const shortMatch = s.match(/^(\d{1,2})\/(\d{1,2})$/) || (cleaned.length === 4 ? [null, cleaned.slice(0, 2), cleaned.slice(2, 4)] : null);
+  if (shortMatch) {
+    const m = parseInt(shortMatch[1]), d = parseInt(shortMatch[2]);
+    if (validateDate(year, m, d)) return `${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}/${year}`;
+  }
+  
+  // Try parsing as date object
+  const date = new Date(s);
+  if (!isNaN(date.getTime())) return dateToString(date);
+  
+  return s; // 返回原始输入，让用户看到无效输入
+}
+
+function formatDateForDisplay(s: string): string {
+  if (!s) return "";
+  // Check if it matches MM/DD/YYYY
+  const match = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (match) {
+    const [, month, day, year] = match;
+    const currentYear = new Date().getFullYear();
+    if (parseInt(year) === currentYear) {
+      return `${month.padStart(2, '0')}/${day.padStart(2, '0')}`;
+    }
+  }
+  return s;
 }
 
 function clamp01_10(n: number): number {
@@ -250,83 +317,114 @@ function safeStorageSet(key: string, value: string) {
 const seed = () => {
   const p1: Project = {
     id: uid("p"),
-    projectId: "SR-2026-01",
-    name: "Summer Research Internship in Computational Biology",
-    institution: "Example University",
-    region: "USA",
+    projectId: "SURF-2026-01",
+    name: "SURF at Caltech",
+    institution: "California Institute of Technology",
+    region: "USA - West Coast",
     type: "Summer Research Program",
-    officialLink: "https://example.edu/summer-research",
-    keywords: ["Computational Chemistry", "GPCR", "Docking", "ML", "Free Energy"],
-    piLab: "Dr. A. Smith — Structural Pharmacology Lab",
+    officialLink: "https://sfp.caltech.edu/programs/surf",
+    keywords: ["Physics", "Materials Science", "Quantum Computing", "Renewable Energy"],
+    piLab: "Dr. Jennifer Chen — Advanced Materials Lab",
     needsOutreach: "Yes",
-    round: "Round 1",
-    ddl: "2026-02-01",
-    period: "2026-06-01 ~ 2026-08-15",
+    round: "Single Round",
+    ddl: "2026-02-22",
+    period: "2026-06-15 ~ 2026-08-20",
     funding: ["stipend", "housing"],
-    eligibility: "Master/PhD track preferred; programming required",
-    materials: ["CV", "Research Statement", "Transcript", "2 Letters"],
+    eligibility: "Undergraduates with strong academic record; minimum GPA 3.5",
+    materials: ["CV", "Research Statement", "Transcript", "2 Letters of Recommendation"],
     portalStatus: "Open",
     status: "Preparing",
     fit: 9,
-    risk: 7,
+    risk: 6,
     roi: 9,
     priority: "High",
     decision: "Apply",
-    nextAction: "Send outreach email with CV + 1-page summary",
-    nextActionDate: "2026-01-05",
+    nextAction: "Draft outreach email to Dr. Chen with research interests",
+    nextActionDate: "2026-01-10",
     outreachIds: [],
     materialTaskIds: [],
-    notes: "Recent relevant publications; method-development friendly.",
+    notes: "Strong program with high acceptance rate for well-prepared applicants. Dr. Chen's lab focuses on sustainable energy materials.",
   };
 
   const p2: Project = {
     id: uid("p"),
-    projectId: "SR-2026-02",
-    name: "Visiting Student Research Fellowship (Chemistry)",
-    institution: "Example Institute",
-    region: "EU",
-    type: "Visiting Student",
-    officialLink: "",
-    keywords: ["Computational Chemistry", "Drug Discovery"],
-    piLab: "",
+    projectId: "REU-2026-02",
+    name: "NSF REU in Computational Neuroscience",
+    institution: "MIT",
+    region: "USA - East Coast",
+    type: "REU Program",
+    officialLink: "https://bcs.mit.edu/reu",
+    keywords: ["Neuroscience", "Machine Learning", "Brain Imaging", "Neural Networks"],
+    piLab: "Dr. Michael Zhang — Computational Brain Lab",
     needsOutreach: "Optional",
-    round: "Single",
-    ddl: "2026-01-20",
-    period: "Summer 2026",
-    funding: ["travel"],
-    eligibility: "Strong academic record; statement required",
-    materials: ["CV", "SOP", "Transcript"],
-    portalStatus: "Not Open",
+    round: "Single Round",
+    ddl: "2026-02-01",
+    period: "2026-06-01 ~ 2026-08-10",
+    funding: ["stipend", "travel", "housing"],
+    eligibility: "US citizens/permanent residents; programming experience required",
+    materials: ["CV", "Personal Statement", "Transcript", "2 Letters"],
+    portalStatus: "Open",
     status: "Prospecting",
     fit: 8,
-    risk: 6,
+    risk: 7,
     roi: 8,
     priority: "Medium",
-    decision: "Maybe",
-    nextAction: "Confirm opening date; shortlist 2 labs",
-    nextActionDate: "2025-12-28",
+    decision: "Apply",
+    nextAction: "Review lab publications and identify specific project interests",
+    nextActionDate: "2026-01-08",
     outreachIds: [],
     materialTaskIds: [],
-    notes: "Need to verify eligibility for current degree.",
+    notes: "Competitive program. Need to highlight Python/MATLAB skills and interest in neural data analysis.",
+  };
+
+  const p3: Project = {
+    id: uid("p"),
+    projectId: "INT-2026-03",
+    name: "Summer Research Internship at Max Planck Institute",
+    institution: "Max Planck Institute for Biological Intelligence",
+    region: "Europe - Germany",
+    type: "International Internship",
+    officialLink: "https://www.bi.mpg.de/internships",
+    keywords: ["Molecular Biology", "Bioinformatics", "Genomics", "Systems Biology"],
+    piLab: "",
+    needsOutreach: "Yes",
+    round: "Rolling",
+    ddl: "2026-03-01",
+    period: "2026-07-01 ~ 2026-09-30",
+    funding: ["stipend"],
+    eligibility: "International students welcome; strong biology/CS background",
+    materials: ["CV", "Motivation Letter", "Transcript", "1 Letter"],
+    portalStatus: "Open",
+    status: "Need Outreach",
+    fit: 7,
+    risk: 8,
+    roi: 7,
+    priority: "Low",
+    decision: "Maybe",
+    nextAction: "Research PIs and identify 2-3 potential advisors",
+    nextActionDate: "2026-01-20",
+    outreachIds: [],
+    materialTaskIds: [],
+    notes: "Rolling admission - need to contact PIs directly. Visa considerations for international travel.",
   };
 
   const o1: Outreach = {
     id: uid("o"),
-    outreachId: "PI-2026-01",
-    piName: "A. Smith",
-    institution: "Example University",
-    directions: ["GPCR", "Docking", "ML"],
-    contact: "asmith@example.edu",
-    firstContact: "2026-01-05",
-    emailVersion: "v2-tailored",
+    outreachId: "OUT-2026-01",
+    piName: "Dr. Jennifer Chen",
+    institution: "California Institute of Technology",
+    directions: ["Solar Cells", "Battery Materials", "Sustainable Energy"],
+    contact: "jchen@caltech.edu",
+    firstContact: "2026-01-10",
+    emailVersion: "v1-introduction",
     replied: "No reply",
     replyDate: "",
     replySummary: "",
-    stage: "Sent",
-    nextFollowUp: "2026-01-12",
-    nextAction: "Follow up with 1-page proposal summary",
+    stage: "Drafting",
+    nextFollowUp: "2026-01-17",
+    nextAction: "Send initial email introducing research background",
     projectIds: [],
-    notes: "Keep email concise; include 2 most relevant outputs.",
+    notes: "Read recent Nature Energy paper. Mention interest in perovskite stability research.",
   };
 
   const m1: MaterialTask = {
@@ -334,13 +432,12 @@ const seed = () => {
     taskId: "MAT-01",
     type: "CV",
     targetProject: "通用",
-    owner: "我",
-    status: "已修改",
-    version: "v2",
-    due: "2026-01-10",
+    status: "未开始",
+    version: "v3",
+    due: "2026-01-15",
     dependency: "",
     link: "",
-    notes: "Add 2 representative projects + skills summary.",
+    notes: "Update with latest research experience and skills. Keep to 1 page.",
   };
 
   const m2: MaterialTask = {
@@ -348,28 +445,61 @@ const seed = () => {
     taskId: "MAT-02",
     type: "Research Statement",
     targetProject: p1.id,
-    owner: "我",
     status: "草稿",
     version: "v1",
-    due: "2026-01-15",
-    dependency: "Need PI focus confirmed",
+    due: "2026-02-01",
+    dependency: "Need to finalize project direction with Dr. Chen",
     link: "",
-    notes: "Emphasize compute→experiment loop.",
+    notes: "Focus on sustainable materials angle. Include specific project proposal.",
+  };
+
+  const m3: MaterialTask = {
+    id: uid("m"),
+    taskId: "MAT-03",
+    type: "SOP",
+    targetProject: p2.id,
+    status: "未开始",
+    version: "v1",
+    due: "2026-01-25",
+    dependency: "MAT-01",
+    link: "",
+    notes: "Emphasize computational skills and neuroscience passion. Connect past experiences.",
   };
 
   const d1: Decision = {
     id: uid("d"),
-    projectInternalId: p2.id,
+    projectInternalId: p1.id,
     conclusion: "Apply",
-    priority: "Medium",
+    priority: "High",
     whyApply:
-      "- Strong alignment with computational chemistry + drug discovery\n- Travel funding lowers cost\n- Clear PI/lab options once portal opens",
+      "- Excellent fit with renewable energy research interests\n- Strong mentorship and lab resources\n- High ROI with stipend and housing covered\n- Dr. Chen's recent publications align perfectly with my background",
     risks:
-      "- Early DDL and tight materials timeline\n- Competitive; may prefer PhD-only\n- Recommendation letter uncertainty",
+      "- Competitive program (~15% acceptance rate)\n- Need strong letters of recommendation\n- Early outreach critical for success",
     fitEvidence:
-      "- Prior screening + docking + assay validation experience\n- Python + modeling + free-energy familiarity\n- Potential for method benchmark + dataset curation",
+      "- Prior coursework in materials science and renewable energy\n- Research experience in battery characterization\n- Programming skills (Python, MATLAB) applicable to computational modeling\n- Genuine interest in sustainable technology",
     strategy:
-      "- Outreach: short email + 2 relevant outputs\n- Materials: tailor RS around closed-loop pipeline\n- Backup: alternative labs within same institute",
+      "- Early outreach: contact Dr. Chen by Jan 10 with specific research interests\n- Tailor research statement to perovskite stability project\n- Request recommendation letters by Jan 20\n- Submit application 1 week before deadline",
+    postResult: "",
+    timeline: "",
+    worked: "",
+    didnt: "",
+    improvements: "",
+    takeaways: "",
+  };
+
+  const d2: Decision = {
+    id: uid("d"),
+    projectInternalId: p3.id,
+    conclusion: "Maybe",
+    priority: "Low",
+    whyApply:
+      "- International experience valuable for career\n- Max Planck has excellent reputation\n- Systems biology aligns with long-term interests",
+    risks:
+      "- Visa complexity and processing time\n- No housing support - need to arrange independently\n- Language barrier potential in Germany\n- Less familiar with European academic system",
+    fitEvidence:
+      "- Strong bioinformatics coursework\n- Some genomics data analysis experience\n- Interest in computational approaches to biology",
+    strategy:
+      "- Research PIs first before committing time\n- Apply only if can identify strong advisor match\n- Consider as backup if US programs don't work out\n- Start visa research early if decide to apply",
     postResult: "",
     timeline: "",
     worked: "",
@@ -380,13 +510,14 @@ const seed = () => {
 
   p1.outreachIds = [o1.id];
   p1.materialTaskIds = [m1.id, m2.id];
+  p2.materialTaskIds = [m1.id, m3.id];
   o1.projectIds = [p1.id];
 
   return {
-    projects: [p1, p2],
+    projects: [p1, p2, p3],
     outreach: [o1],
-    materials: [m1, m2],
-    decisions: [d1],
+    materials: [m1, m2, m3],
+    decisions: [d1, d2],
     meta: {
       version: 1,
       createdAt: new Date().toISOString(),
@@ -581,45 +712,161 @@ function SelectBox({
   value,
   onValueChange,
   options,
-  placeholder,
   className,
   id,
 }: {
   value?: string;
   onValueChange: (v: string) => void;
   options: SelectOption[];
-  placeholder?: string;
   className?: string;
   id?: string;
 }) {
   const v = value ?? "";
   return (
-    <select
-      id={id}
-      value={v}
-      onChange={(e) => onValueChange(e.target.value)}
-      className={
-        className ||
-        "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pr-6 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOCIgaGVpZ2h0PSI2IiB2aWV3Qm94PSIwIDAgOCA2IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxwYXRoIGQ9Ik0xIDFMNCB0TDcgMSIgc3Ryb2tlPSIjNjk3Mzg0IiBzdHJva2Utd2lkdGg9IjEuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PC9zdmc+')] bg-no-repeat bg-right-2 bg-center"
-      }
-    >
-      {placeholder !== undefined ? (
-        <option value="" disabled>
-          {placeholder}
-        </option>
-      ) : null}
-      {options.map((o) => (
-        <option key={o.value} value={o.value} disabled={o.disabled}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+    <Select value={v} onValueChange={onValueChange}>
+      <SelectTrigger id={id} className={className}>
+        <SelectValue placeholder="Select..." />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((o) => (
+          <SelectItem key={o.value} value={o.value || "_empty_"} disabled={o.disabled}>
+            {o.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function SmartDateInput({
+  value,
+  onCommit,
+  className,
+  placeholder,
+}: {
+  value: string;
+  onCommit: (v: string) => void;
+  className?: string;
+  placeholder?: string;
+}) {
+  const [temp, setTemp] = useState(value);
+  const [focus, setFocus] = useState(false);
+
+  useEffect(() => {
+    if (!focus) setTemp(value);
+  }, [value, focus]);
+
+  return (
+    <Input
+      className={className}
+      placeholder={placeholder}
+      value={focus ? temp : formatDateForDisplay(value)}
+      onFocus={() => {
+        setFocus(true);
+        setTemp(value);
+      }}
+      onChange={(e) => {
+        setTemp(formatDateInput(e.target.value));
+      }}
+      onBlur={() => {
+        setFocus(false);
+        const final = parseDateInput(temp);
+        onCommit(final);
+        setTemp(final);
+      }}
+      maxLength={10}
+    />
   );
 }
 
 // -----------------------------
 // Main App
 // -----------------------------
+
+function SettingsDialog() {
+  const [open, setOpen] = useState(false);
+  const [storageRoot, setStorageRoot] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      fetch('http://localhost:3001/config')
+        .then(res => res.json())
+        .then(data => setStorageRoot(data.storageRoot))
+        .catch(err => console.error(err));
+    }
+  }, [open]);
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      await fetch('http://localhost:3001/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ storageRoot })
+      });
+      setOpen(false);
+    } catch (err) {
+      alert('Failed to save config');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOpenFolder = async () => {
+    try {
+      await fetch('http://localhost:3001/open-folder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: storageRoot })
+      });
+    } catch (err) {
+      alert('Failed to open folder');
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="gap-2">
+          <Settings className="h-4 w-4" />
+          Settings
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Settings</DialogTitle>
+          <DialogDescription>Configure application settings</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>External Storage Path</Label>
+            <div className="flex gap-2">
+              <Input 
+                value={storageRoot} 
+                onChange={(e) => setStorageRoot(e.target.value)} 
+                placeholder="/path/to/storage"
+              />
+              <Button variant="outline" size="icon" onClick={handleOpenFolder} title="Open in File Explorer">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
+                </svg>
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Absolute path to the folder where files will be stored.
+            </p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={handleSave} disabled={loading}>
+            {loading ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function SummerResearchTrackerApp() {
   const [store, setStore] = useState<Store>(() => loadStore());
@@ -833,11 +1080,25 @@ export default function SummerResearchTrackerApp() {
     setStore(seed());
   }
 
-  function addProject() {
+  async function addProject() {
+    const name = prompt("Enter project name (this will create a folder):");
+    if (name === null) return;
+
+    try {
+      await fetch('http://localhost:3001/create-project-folder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectName: name || "Untitled" })
+      });
+    } catch (e) {
+      console.error("Failed to create folder", e);
+      alert("Warning: Failed to create project folder on server.");
+    }
+
     const p: Project = {
       id: uid("p"),
       projectId: `SR-${new Date().getFullYear() + 1}-${String(store.projects.length + 1).padStart(2, "0")}`,
-      name: "",
+      name: name || "",
       institution: "",
       region: "",
       type: "",
@@ -867,7 +1128,32 @@ export default function SummerResearchTrackerApp() {
     setStore((s) => normalizeStore({ ...s, projects: [p, ...s.projects] }));
   }
 
-  function updateProject(id: ID, patch: Partial<Project>) {
+  async function updateProject(id: ID, patch: Partial<Project>) {
+    const oldProject = store.projects.find(p => p.id === id);
+    
+    // Handle Folder Rename
+    if (oldProject && patch.name && patch.name !== oldProject.name) {
+      try {
+        await fetch('http://localhost:3001/rename-folder', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ oldName: oldProject.name, newName: patch.name })
+        });
+        
+        // Update links for all materials in this project
+        const materialsToUpdate = store.materials.filter(m => m.targetProject === id && m.link);
+        materialsToUpdate.forEach(m => {
+          const newLink = m.link.replace(
+            `/files/${encodeURIComponent(oldProject.name)}/`, 
+            `/files/${encodeURIComponent(patch.name!)}/`
+          );
+          updateMaterial(m.id, { link: newLink });
+        });
+      } catch (e) {
+        console.error("Failed to rename folder", e);
+      }
+    }
+
     setStore((s) =>
       normalizeStore({
         ...s,
@@ -876,9 +1162,25 @@ export default function SummerResearchTrackerApp() {
     );
   }
 
-  function deleteProject(id: ID) {
+  async function deleteProject(id: ID) {
     const ok = confirm("Delete this project? (linked outreach/materials will remain)");
     if (!ok) return;
+
+    const project = store.projects.find(p => p.id === id);
+    if (project && project.name) {
+      const deleteFiles = confirm(`Also delete the folder "${project.name}" and all its files?`);
+      if (deleteFiles) {
+        try {
+          await fetch('http://localhost:3001/delete-folder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ folderName: project.name })
+          });
+        } catch (e) {
+          console.error("Failed to delete folder", e);
+        }
+      }
+    }
 
     setStore((s) =>
       normalizeStore({
@@ -983,7 +1285,6 @@ export default function SummerResearchTrackerApp() {
       taskId: `MAT-${String(store.materials.length + 1).padStart(2, "0")}`,
       type: "CV",
       targetProject: linkProjectId || "通用",
-      owner: "我",
       status: "未开始",
       version: "v1",
       due: "",
@@ -1007,7 +1308,56 @@ export default function SummerResearchTrackerApp() {
     );
   }
 
-  function updateMaterial(id: ID, patch: Partial<MaterialTask>) {
+  async function updateMaterial(id: ID, patch: Partial<MaterialTask>) {
+    const current = store.materials.find((m) => m.id === id);
+    if (!current) return;
+
+    // Handle File Move/Rename
+    if (current.link && (patch.targetProject || patch.type)) {
+      const oldProjectName = current.targetProject === "通用" 
+        ? "General" 
+        : store.projects.find(p => p.id === current.targetProject)?.name || "General";
+      
+      const newTargetId = patch.targetProject !== undefined ? patch.targetProject : current.targetProject;
+      const newProjectName = newTargetId === "通用"
+        ? "General"
+        : store.projects.find(p => p.id === newTargetId)?.name || "General";
+
+      const oldType = current.type;
+      const newType = patch.type !== undefined ? patch.type : oldType;
+
+      // Extract filename from link (assuming format .../files/Project/Filename.ext)
+      const urlParts = current.link.split('/');
+      const oldFilename = decodeURIComponent(urlParts[urlParts.length - 1]);
+      const ext = oldFilename.includes('.') ? '.' + oldFilename.split('.').pop() : '';
+      
+      // If type changed, new filename changes
+      const newFilename = (patch.type && patch.type !== oldType) 
+        ? `${newType}${ext}` 
+        : oldFilename;
+
+      if (oldProjectName !== newProjectName || oldFilename !== newFilename) {
+        try {
+          const res = await fetch('http://localhost:3001/move-file', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              oldPath: `${oldProjectName}/${oldFilename}`,
+              newPath: `${newProjectName}/${newFilename}`
+            })
+          });
+          
+          if (res.ok) {
+            // Update link in patch
+            const newLink = `http://localhost:3001/files/${encodeURIComponent(newProjectName)}/${encodeURIComponent(newFilename)}`;
+            patch.link = newLink;
+          }
+        } catch (e) {
+          console.error("Failed to move file", e);
+        }
+      }
+    }
+
     setStore((s) => {
       const current = s.materials.find((m) => m.id === id);
       if (!current) return s;
@@ -1031,9 +1381,32 @@ export default function SummerResearchTrackerApp() {
     });
   }
 
-  function deleteMaterial(id: ID) {
+  async function deleteMaterial(id: ID) {
     const ok = confirm("Delete this material task?");
     if (!ok) return;
+
+    const task = store.materials.find(m => m.id === id);
+    if (task && task.link) {
+      const deleteFile = confirm("Also delete the associated file?");
+      if (deleteFile) {
+        try {
+          const urlParts = task.link.split('/');
+          const filename = decodeURIComponent(urlParts[urlParts.length - 1]);
+          const projectName = task.targetProject === "通用" 
+            ? "General" 
+            : store.projects.find(p => p.id === task.targetProject)?.name || "General";
+            
+          await fetch('http://localhost:3001/delete-file', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filePath: `${projectName}/${filename}` })
+          });
+        } catch (e) {
+          console.error("Failed to delete file", e);
+        }
+      }
+    }
+
     setStore((s) =>
       normalizeStore({
         ...s,
@@ -1207,6 +1580,8 @@ export default function SummerResearchTrackerApp() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            <SettingsDialog />
 
             <input
               ref={fileInputRef}
@@ -1387,7 +1762,6 @@ export default function SummerResearchTrackerApp() {
                         <div className="text-xs text-muted-foreground mt-1">
                           Due: {m.due || "—"} · {m.status}
                         </div>
-                        <div className="text-xs mt-1 text-muted-foreground">Owner: {m.owner}</div>
                       </div>
                     ))
                   ) : (
@@ -1453,12 +1827,12 @@ export default function SummerResearchTrackerApp() {
                     <TableHeader className="bg-muted/50">
                       <TableRow className="hover:bg-muted/30">
                         <TableHead className="min-w-[130px] font-semibold text-foreground">ID</TableHead>
-                        <TableHead className="min-w-[200px] font-semibold text-foreground">Name</TableHead>
-                        <TableHead className="min-w-[160px] font-semibold text-foreground">Institution</TableHead>
+                        <TableHead className="min-w-[250px] font-semibold text-foreground">Name</TableHead>
+                        <TableHead className="min-w-[200px] font-semibold text-foreground">Institution</TableHead>
                         <TableHead className="min-w-[110px] font-semibold text-foreground">DDL</TableHead>
                         <TableHead className="min-w-[140px] font-semibold text-foreground">Status</TableHead>
                         <TableHead className="min-w-[120px] font-semibold text-foreground">Priority</TableHead>
-                        <TableHead className="min-w-[210px] font-semibold text-foreground">Next Action</TableHead>
+                        <TableHead className="min-w-[300px] font-semibold text-foreground">Next Action</TableHead>
                         <TableHead className="w-[100px] font-semibold text-foreground">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1510,10 +1884,10 @@ export default function SummerResearchTrackerApp() {
                           </TableCell>
 
                           <TableCell>
-                            <DatePickerComponent
-                              selected={stringToDate(p.ddl)}
-                              onChange={(date) => updateProject(p.id, { ddl: dateToString(date) })}
-                              placeholderText="DDL"
+                            <SmartDateInput
+                              value={p.ddl}
+                              onCommit={(v) => updateProject(p.id, { ddl: v })}
+                              placeholder="MM/DD"
                               className="h-8"
                             />
                           </TableCell>
@@ -1523,14 +1897,12 @@ export default function SummerResearchTrackerApp() {
                               value={p.status}
                               onValueChange={(v) => updateProject(p.id, { status: v as ProjectStatus })}
                               options={STATUS_LIST.map((s) => ({ value: s, label: s }))}
-                              className="h-8 rounded-md border border-input bg-background px-2 text-sm"
                             />
                             <div className="mt-2">
                               <SelectBox
                                 value={p.decision}
                                 onValueChange={(v) => updateProject(p.id, { decision: v as any })}
                                 options={DECISION_OPTIONS}
-                                className="h-8 rounded-md border border-input bg-background px-2 text-sm"
                               />
                             </div>
                           </TableCell>
@@ -1540,7 +1912,6 @@ export default function SummerResearchTrackerApp() {
                               value={p.priority}
                               onValueChange={(v) => updateProject(p.id, { priority: v as Priority })}
                               options={PRIORITIES.map((pr) => ({ value: pr, label: pr }))}
-                              className="h-8 rounded-md border border-input bg-background px-2 text-sm"
                             />
                           </TableCell>
 
@@ -1552,10 +1923,10 @@ export default function SummerResearchTrackerApp() {
                                 placeholder="Next action"
                                 className="h-8"
                               />
-                              <DatePickerComponent
-                                selected={stringToDate(p.nextActionDate)}
-                                onChange={(date) => updateProject(p.id, { nextActionDate: dateToString(date) })}
-                                placeholderText="Next action date"
+                              <SmartDateInput
+                                value={p.nextActionDate}
+                                onCommit={(v) => updateProject(p.id, { nextActionDate: v })}
+                                placeholder="MM/DD"
                                 className="h-8"
                               />
                             </div>
@@ -1654,12 +2025,12 @@ export default function SummerResearchTrackerApp() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="min-w-[130px]">Outreach ID</TableHead>
-                        <TableHead className="min-w-[160px]">PI</TableHead>
-                        <TableHead className="min-w-[180px]">Institution</TableHead>
+                        <TableHead className="min-w-[200px]">PI</TableHead>
+                        <TableHead className="min-w-[220px]">Institution</TableHead>
                         <TableHead className="min-w-[120px]">First Contact</TableHead>
                         <TableHead className="min-w-[140px]">Reply</TableHead>
                         <TableHead className="min-w-[130px]">Stage</TableHead>
-                        <TableHead className="min-w-[160px]">Next Follow-up</TableHead>
+                        <TableHead className="min-w-[200px]">Next Follow-up</TableHead>
                         <TableHead className="w-[100px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1701,10 +2072,10 @@ export default function SummerResearchTrackerApp() {
                               />
                             </TableCell>
                             <TableCell>
-                              <DatePickerComponent
-                                selected={stringToDate(o.firstContact)}
-                                onChange={(date) => updateOutreach(o.id, { firstContact: dateToString(date) })}
-                                placeholderText="First contact"
+                              <SmartDateInput
+                                value={o.firstContact}
+                                onCommit={(v) => updateOutreach(o.id, { firstContact: v })}
+                                placeholder="MM/DD"
                                 className="h-8"
                               />
                             </TableCell>
@@ -1717,13 +2088,12 @@ export default function SummerResearchTrackerApp() {
                                   { value: "Replied", label: "Replied" },
                                   { value: "Auto-reply", label: "Auto-reply" },
                                 ]}
-                                className="h-8 rounded-md border border-input bg-background px-2 text-sm"
                               />
                               <div className="mt-2">
-                                <DatePickerComponent
-                                  selected={stringToDate(o.replyDate)}
-                                  onChange={(date) => updateOutreach(o.id, { replyDate: dateToString(date) })}
-                                  placeholderText="Reply date"
+                                <SmartDateInput
+                                  value={o.replyDate}
+                                  onCommit={(v) => updateOutreach(o.id, { replyDate: v })}
+                                  placeholder="MM/DD"
                                   className="h-8"
                                 />
                               </div>
@@ -1739,10 +2109,10 @@ export default function SummerResearchTrackerApp() {
                               />
                             </TableCell>
                             <TableCell>
-                              <DatePickerComponent
-                                selected={stringToDate(o.nextFollowUp)}
-                                onChange={(date) => updateOutreach(o.id, { nextFollowUp: dateToString(date) })}
-                                placeholderText="Next follow-up"
+                              <SmartDateInput
+                                value={o.nextFollowUp}
+                                onCommit={(v) => updateOutreach(o.id, { nextFollowUp: v })}
+                                placeholder="MM/DD"
                                 className="h-8"
                               />
                             </TableCell>
@@ -1805,11 +2175,10 @@ export default function SummerResearchTrackerApp() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="min-w-[110px]">Task ID</TableHead>
-                        <TableHead className="min-w-[180px]">Type</TableHead>
-                        <TableHead className="min-w-[160px]">Target</TableHead>
-                        <TableHead className="min-w-[120px]">Owner</TableHead>
+                        <TableHead className="min-w-[220px]">Type</TableHead>
+                        <TableHead className="min-w-[200px]">Target</TableHead>
                         <TableHead className="min-w-[140px]">Status</TableHead>
-                        <TableHead className="min-w-[120px]">Due</TableHead>
+                        <TableHead className="min-w-[150px]">Due</TableHead>
                         <TableHead className="w-[100px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1874,13 +2243,6 @@ export default function SummerResearchTrackerApp() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <Input
-                                value={m.owner}
-                                onChange={(e) => updateMaterial(m.id, { owner: e.target.value })}
-                                className="h-8"
-                              />
-                            </TableCell>
-                            <TableCell>
                               <SelectBox
                                 value={m.status}
                                 onValueChange={(v) => updateMaterial(m.id, { status: v as any })}
@@ -1891,10 +2253,10 @@ export default function SummerResearchTrackerApp() {
                               />
                             </TableCell>
                             <TableCell>
-                              <DatePickerComponent
-                                selected={stringToDate(m.due)}
-                                onChange={(date) => updateMaterial(m.id, { due: dateToString(date) })}
-                                placeholderText="Due date"
+                              <SmartDateInput
+                                value={m.due}
+                                onCommit={(v) => updateMaterial(m.id, { due: v })}
+                                placeholder="MM/DD"
                                 className="h-8"
                               />
                             </TableCell>
@@ -2052,7 +2414,6 @@ function DecisionCreateDialog({
               value: p.id,
               label: `${p.projectId} · ${p.name || "(untitled)"}`,
             }))}
-            placeholder="Select project"
           />
         </div>
         <DialogFooter>
@@ -2182,19 +2543,19 @@ function ProjectDetailsDialog({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label className="text-sm font-medium">DDL</Label>
-                <DatePickerComponent
-                  selected={stringToDate(project.ddl)}
-                  onChange={(date) => onUpdate({ ddl: dateToString(date) })}
-                  placeholderText="Select DDL"
+                <SmartDateInput
+                  value={project.ddl}
+                  onCommit={(v) => onUpdate({ ddl: v })}
+                  placeholder="MM/DD/YYYY"
                   className="h-11"
                 />
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Next Action Date</Label>
-                <DatePickerComponent
-                  selected={stringToDate(project.nextActionDate)}
-                  onChange={(date) => onUpdate({ nextActionDate: dateToString(date) })}
-                  placeholderText="Select next action date"
+                <SmartDateInput
+                  value={project.nextActionDate}
+                  onCommit={(v) => onUpdate({ nextActionDate: v })}
+                  placeholder="MM/DD/YYYY"
                   className="h-11"
                 />
               </div>
@@ -2495,7 +2856,6 @@ function ProjectDetailsDialog({
                       value: o.id,
                       label: `${o.outreachId} · ${o.piName}${o.institution ? ` (${o.institution})` : ""}`,
                     }))}
-                  placeholder="Select outreach to link"
                   className="h-8 text-xs"
                 />
               </div>
@@ -2536,7 +2896,6 @@ function ProjectDetailsDialog({
                                   Due: {m.due}
                                 </div>
                               )}
-                              {m.owner && <span>Owner: {m.owner}</span>}
                             </div>
                             <div className="flex items-center gap-2 mt-1">
                               <Badge variant="outline" className="text-xs">
@@ -2614,15 +2973,13 @@ function ProjectDetailsDialog({
                       return (
                         !search ||
                         m.taskId.toLowerCase().includes(search) ||
-                        m.type.toLowerCase().includes(search) ||
-                        m.owner.toLowerCase().includes(search)
+                        m.type.toLowerCase().includes(search)
                       );
                     })
                     .map((m) => ({
                       value: m.id,
-                      label: `${m.taskId} · ${m.type}${m.owner ? ` (${m.owner})` : ""}`,
+                      label: `${m.taskId} · ${m.type}`,
                     }))}
-                  placeholder="Select material to link"
                   className="h-8 text-xs"
                 />
               </div>
@@ -2764,47 +3121,16 @@ function OutreachDetailsDialog({
             </div>
             <div className="space-y-2">
               <Label>Contact</Label>
-              <div className="flex gap-2">
-                <Input value={outreach.contact} onChange={(e) => onUpdate({ contact: e.target.value })} placeholder="Email / form link" />
-                <Button
-                  variant="outline"
-                  onClick={async () => {
-                    if (outreach.contact && outreach.contact.includes('@')) {
-                      try {
-                        const response = await fetch('http://localhost:3001/send-email', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            to: outreach.contact,
-                            subject: `Inquiry about ${outreach.piName}'s research opportunities`,
-                            body: `Dear ${outreach.piName},\n\nI am interested in your research on ${outreach.directions?.join(', ') || 'your work'}. Could you please provide more information about potential opportunities?\n\nBest regards,\n[Your Name]`
-                          }),
-                        });
-                        const data = await response.json();
-                        if (data.success) {
-                          alert('Email sent successfully');
-                          onUpdate({ stage: 'Sent', nextFollowUp: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], threadId: data.threadId });
-                        }
-                      } catch (error) {
-                        alert('Failed to send email');
-                      }
-                    } else {
-                      window.open(`mailto:${outreach.contact}`);
-                    }
-                  }}
-                >
-                  Send Email
-                </Button>
-              </div>
+              <Input value={outreach.contact} onChange={(e) => onUpdate({ contact: e.target.value })} placeholder="Email / form link" />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-2">
                 <Label>First Contact</Label>
-                <DatePickerComponent
-                  selected={stringToDate(outreach.firstContact)}
-                  onChange={(date) => onUpdate({ firstContact: dateToString(date) })}
-                  placeholderText="Select first contact date"
+                <SmartDateInput
+                  value={outreach.firstContact}
+                  onCommit={(v) => onUpdate({ firstContact: v })}
+                  placeholder="MM/DD/YYYY"
                 />
               </div>
               <div className="space-y-2">
@@ -2853,10 +3179,10 @@ function OutreachDetailsDialog({
               </div>
               <div className="space-y-2">
                 <Label>Reply Date</Label>
-                <DatePickerComponent
-                  selected={stringToDate(outreach.replyDate)}
-                  onChange={(date) => onUpdate({ replyDate: dateToString(date) })}
-                  placeholderText="Select reply date"
+                <SmartDateInput
+                  value={outreach.replyDate}
+                  onCommit={(v) => onUpdate({ replyDate: v })}
+                  placeholder="MM/DD/YYYY"
                 />
               </div>
             </div>
@@ -2881,10 +3207,10 @@ function OutreachDetailsDialog({
               </div>
               <div className="space-y-2">
                 <Label>Next Follow-up</Label>
-                <DatePickerComponent
-                  selected={stringToDate(outreach.nextFollowUp)}
-                  onChange={(date) => onUpdate({ nextFollowUp: dateToString(date) })}
-                  placeholderText="Select next follow-up date"
+                <SmartDateInput
+                  value={outreach.nextFollowUp}
+                  onCommit={(v) => onUpdate({ nextFollowUp: v })}
+                  placeholder="MM/DD/YYYY"
                 />
               </div>
             </div>
@@ -2942,7 +3268,6 @@ function OutreachDetailsDialog({
                   value: p.id,
                   label: `${p.projectId} · ${p.name || "(untitled)"}`,
                 }))}
-                placeholder="Link a project"
               />
             </div>
 
@@ -3003,75 +3328,91 @@ function MaterialDetailsDialog({
         <div className="space-y-3">
           <div className="grid md:grid-cols-2 gap-2">
             <div className="space-y-2">
+              <Label>Due Date</Label>
+              <SmartDateInput
+                value={task.due}
+                onCommit={(v) => onUpdate({ due: v })}
+                placeholder="MM/DD/YYYY"
+              />
+            </div>
+            <div className="space-y-2">
               <Label>Dependency</Label>
               <Input value={task.dependency} onChange={(e) => onUpdate({ dependency: e.target.value })} placeholder="E.g., confirm recommender" />
             </div>
+          </div>
+
+          <div className="space-y-4 border rounded-md p-4 bg-muted/10">
             <div className="space-y-2">
-              <Label>Link / Attachment</Label>
+              <Label className="flex items-center gap-2">
+                <Upload className="h-4 w-4" />
+                File Management
+              </Label>
+              
               <div className="flex gap-2">
-                <Input value={task.link} onChange={(e) => onUpdate({ link: e.target.value })} placeholder="Drive/Notion link or uploaded file URL" />
+                <Input 
+                  value={task.link} 
+                  onChange={(e) => onUpdate({ link: e.target.value })} 
+                  placeholder="File URL or External Link" 
+                  className="flex-1"
+                />
+                {task.link && (
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    onClick={() => window.open(task.link, '_blank')}
+                    title="Open Link"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </Button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 mt-2">
                 <input
                   type="file"
-                  id="file-upload"
+                  id={`file-upload-${task.id}`}
                   style={{ display: 'none' }}
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (file) {
                       const formData = new FormData();
                       formData.append('file', file);
+                      // Add metadata for folder structure
+                      // Use project name for folder naming as requested
+                      formData.append('projectName', project ? project.name : 'General');
+                      formData.append('type', task.type);
+
                       try {
                         const response = await fetch('http://localhost:3001/upload', {
                           method: 'POST',
                           body: formData,
                         });
+                        if (!response.ok) throw new Error('Upload failed');
                         const data = await response.json();
                         onUpdate({ link: data.link });
                       } catch (error) {
-                        alert('Upload failed');
+                        alert('Upload failed. Ensure server is running on port 3001.');
                       }
                     }
+                    e.target.value = '';
                   }}
                 />
                 <Button
                   variant="outline"
-                  onClick={() => document.getElementById('file-upload')?.click()}
+                  className="w-full"
+                  onClick={() => document.getElementById(`file-upload-${task.id}`)?.click()}
                 >
                   <Upload className="h-4 w-4 mr-2" />
-                  Upload Local
-                </Button>
-                <input
-                  type="file"
-                  id="drive-upload"
-                  style={{ display: 'none' }}
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      const formData = new FormData();
-                      formData.append('file', file);
-                      try {
-                        const response = await fetch('http://localhost:3001/upload-drive', {
-                          method: 'POST',
-                          body: formData,
-                        });
-                        const data = await response.json();
-                        onUpdate({ link: data.link });
-                      } catch (error) {
-                        alert('Drive upload failed');
-                      }
-                    }
-                  }}
-                />
-                <Button
-                  variant="outline"
-                  onClick={() => document.getElementById('drive-upload')?.click()}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload to Drive
+                  Upload & Organize File
                 </Button>
               </div>
+              <p className="text-[10px] text-muted-foreground">
+                * Uploads to configured folder/{project ? project.name : 'General'}/{task.type}.ext
+              </p>
             </div>
           </div>
-
           <div className="space-y-2">
             <Label>Notes</Label>
             <Textarea value={task.notes} onChange={(e) => onUpdate({ notes: e.target.value })} rows={6} />
@@ -3089,32 +3430,58 @@ function MaterialDetailsDialog({
 function DecisionEditor({
   d,
   p,
-  onUpdate,
+  onLocalUpdate,
+  onCommit,
 }: {
   d: Decision;
   p: Project;
-  onUpdate: (patch: Partial<Decision>) => void;
+  onLocalUpdate: (patch: Partial<Decision>) => void;
+  onCommit: (patch: Partial<Decision>) => void;
 }) {
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-3 gap-2">
         <div className="space-y-1">
           <Label className="text-xs">Why apply</Label>
-          <Textarea value={d.whyApply} onChange={(e) => onUpdate({ whyApply: e.target.value })} rows={4} placeholder="3–5 bullets" />
+          <Textarea 
+            value={d.whyApply} 
+            onChange={(e) => onLocalUpdate({ whyApply: e.target.value })} 
+            onBlur={() => onCommit({ whyApply: d.whyApply })}
+            rows={4} 
+            placeholder="3–5 bullets" 
+          />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Risks</Label>
-          <Textarea value={d.risks} onChange={(e) => onUpdate({ risks: e.target.value })} rows={4} placeholder="3–5 bullets" />
+          <Textarea 
+            value={d.risks} 
+            onChange={(e) => onLocalUpdate({ risks: e.target.value })} 
+            onBlur={() => onCommit({ risks: d.risks })}
+            rows={4} 
+            placeholder="3–5 bullets" 
+          />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Fit evidence</Label>
-          <Textarea value={d.fitEvidence} onChange={(e) => onUpdate({ fitEvidence: e.target.value })} rows={4} placeholder="Evidence from your work" />
+          <Textarea 
+            value={d.fitEvidence} 
+            onChange={(e) => onLocalUpdate({ fitEvidence: e.target.value })} 
+            onBlur={() => onCommit({ fitEvidence: d.fitEvidence })}
+            rows={4} 
+            placeholder="Evidence from your work" 
+          />
         </div>
       </div>
 
       <div className="space-y-1">
         <Label className="text-xs">Strategy</Label>
-        <Textarea value={d.strategy} onChange={(e) => onUpdate({ strategy: e.target.value })} rows={4} placeholder="Outreach / materials / backup plan" />
+        <Textarea 
+          value={d.strategy} 
+          onChange={(e) => onLocalUpdate({ strategy: e.target.value })} 
+          onBlur={() => onCommit({ strategy: d.strategy })}
+          rows={4} 
+          placeholder="Outreach / materials / backup plan" 
+        />
       </div>
 
       <Separator />
@@ -3123,43 +3490,73 @@ function DecisionEditor({
         <div className="space-y-1">
           <Label className="text-xs">Post result</Label>
           <SelectBox
-            value={d.postResult}
-            onValueChange={(v) => onUpdate({ postResult: v as any })}
+            value={d.postResult || "_none_"}
+            onValueChange={(v) => {
+              const val = v === "_none_" ? "" : v;
+              onLocalUpdate({ postResult: val as any });
+              onCommit({ postResult: val as any });
+            }}
             options={[
-              { value: "", label: "(empty)" },
+              { value: "_none_", label: "(empty)" },
               { value: "Interview", label: "Interview" },
               { value: "Offer", label: "Offer" },
               { value: "Rejected", label: "Rejected" },
               { value: "No response", label: "No response" },
             ]}
-            className="h-8 rounded-md border border-input bg-background px-2 text-sm"
           />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Timeline</Label>
-          <Textarea value={d.timeline} onChange={(e) => onUpdate({ timeline: e.target.value })} rows={2} placeholder="Submitted → reply → interview → result" />
+          <Textarea 
+            value={d.timeline} 
+            onChange={(e) => onLocalUpdate({ timeline: e.target.value })} 
+            onBlur={() => onCommit({ timeline: d.timeline })}
+            rows={2} 
+            placeholder="Submitted → reply → interview → result" 
+          />
         </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-2">
         <div className="space-y-1">
           <Label className="text-xs">What worked</Label>
-          <Textarea value={d.worked} onChange={(e) => onUpdate({ worked: e.target.value })} rows={3} />
+          <Textarea 
+            value={d.worked} 
+            onChange={(e) => onLocalUpdate({ worked: e.target.value })} 
+            onBlur={() => onCommit({ worked: d.worked })}
+            rows={3} 
+          />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">What didn’t</Label>
-          <Textarea value={d.didnt} onChange={(e) => onUpdate({ didnt: e.target.value })} rows={3} />
+          <Label className="text-xs">What didn't</Label>
+          <Textarea 
+            value={d.didnt} 
+            onChange={(e) => onLocalUpdate({ didnt: e.target.value })} 
+            onBlur={() => onCommit({ didnt: d.didnt })}
+            rows={3} 
+          />
         </div>
       </div>
 
       <div className="space-y-1">
         <Label className="text-xs">Improvements</Label>
-        <Textarea value={d.improvements} onChange={(e) => onUpdate({ improvements: e.target.value })} rows={3} />
+        <Textarea 
+          value={d.improvements} 
+          onChange={(e) => onLocalUpdate({ improvements: e.target.value })} 
+          onBlur={() => onCommit({ improvements: d.improvements })}
+          rows={3} 
+        />
       </div>
 
       <div className="space-y-1">
         <Label className="text-xs">Takeaways</Label>
-        <Textarea value={d.takeaways} onChange={(e) => onUpdate({ takeaways: e.target.value })} rows={2} placeholder="≤ 3 items" />
+        <Textarea 
+          value={d.takeaways} 
+          onChange={(e) => onLocalUpdate({ takeaways: e.target.value })} 
+          onBlur={() => onCommit({ takeaways: d.takeaways })}
+          rows={2} 
+          placeholder="≤ 3 items" 
+        />
       </div>
 
       <div className="text-xs text-muted-foreground">
@@ -3180,6 +3577,22 @@ function DecisionDetailsDialog({
   onUpdate: (patch: Partial<Decision>) => void;
   onClose: () => void;
 }) {
+  // Local state to prevent re-render issues
+  const [localDecision, setLocalDecision] = React.useState<Decision>(decision);
+
+  // Sync local state when decision ID changes (switching items)
+  React.useEffect(() => {
+    setLocalDecision(decision);
+  }, [decision.id]);
+
+  const handleLocalUpdate = (patch: Partial<Decision>) => {
+    setLocalDecision((prev) => ({ ...prev, ...patch }));
+  };
+
+  const commitUpdate = (patch: Partial<Decision>) => {
+    onUpdate(patch);
+  };
+
   return (
     <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -3195,24 +3608,35 @@ function DecisionDetailsDialog({
             <div className="space-y-2">
               <Label className="text-sm font-medium">Conclusion</Label>
               <SelectBox
-                value={decision.conclusion}
-                onValueChange={(v) => onUpdate({ conclusion: v as any })}
-                options={DECISION_OPTIONS}
-                className="h-9"
+                value={localDecision.conclusion || "_none_"}
+                onValueChange={(v) => {
+                  const val = v === "_none_" ? "" : v;
+                  handleLocalUpdate({ conclusion: val as any });
+                  commitUpdate({ conclusion: val as any });
+                }}
+                options={[{ value: "_none_", label: "(empty)" }, ...DECISION_OPTIONS]}
               />
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-medium">Priority</Label>
               <SelectBox
-                value={decision.priority}
-                onValueChange={(v) => onUpdate({ priority: v as any })}
-                options={PRIORITIES.map((pr) => ({ value: pr, label: pr }))}
-                className="h-9"
+                value={localDecision.priority || "_none_"}
+                onValueChange={(v) => {
+                  const val = v === "_none_" ? "" : v;
+                  handleLocalUpdate({ priority: val as any });
+                  commitUpdate({ priority: val as any });
+                }}
+                options={[{ value: "_none_", label: "(empty)" }, ...PRIORITIES.map((pr) => ({ value: pr, label: pr }))]}
               />
             </div>
           </div>
 
-          <DecisionEditor d={decision} p={project} onUpdate={onUpdate} />
+          <DecisionEditor 
+            d={localDecision} 
+            p={project} 
+            onLocalUpdate={handleLocalUpdate}
+            onCommit={commitUpdate}
+          />
         </div>
       </DialogContent>
     </Dialog>

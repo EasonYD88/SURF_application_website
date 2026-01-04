@@ -1,199 +1,250 @@
 # Summer Research Application Tracker
 
-这是一个用于跟踪暑期研究申请项目的React应用，集成了Gmail API和Google Drive，支持邮件追踪和文件管理。
+一个全功能的研究申请管理系统，专为暑期研究项目申请设计。支持项目追踪、材料管理、邮件集成和本地文件组织，帮助申请者高效地管理多个项目的申请流程。
 
-## ✨ 主要功能
+## 🎯 核心功能
 
-- 📊 **项目管理** - 追踪所有申请项目的状态、截止日期和优先级
-- 📧 **邮件集成** - 通过Gmail API发送邮件、检查回复、自动提醒
-- 📁 **文件管理** - 上传CV、推荐信等材料到本地或Google Drive
-- 👥 **Outreach追踪** - 管理与PI的联系记录和follow-up
-- 📝 **材料任务** - 追踪所有申请材料的准备进度
-- 🎯 **决策分析** - 记录申请决策和结果分析
-- 📈 **Dashboard** - 可视化展示所有重要信息和提醒
+### 项目管理
+- **项目追踪** - 集中管理所有申请项目的基本信息、截止日期和当前状态
+- **优先级评估** - 通过匹配度(Fit)、风险度(Risk)和投资回报率(ROI)评估每个项目
+- **状态管理** - 完整的申请流程状态追踪（Prospecting → Submitted → Interview → Offer/Rejected）
+- **快速搜索** - 按关键字、机构、地区等多维度检索项目
 
-## 前置要求
+### 套磁管理（Outreach）
+- **联系记录** - 记录与PI的联系历史
+- **阶段管理** - 追踪套磁进度（Drafting → Sent → Follow-up → Meeting → Closed）
+- **手动追踪** - 记录回复状态和follow-up计划
 
-在运行此项目之前，您需要安装：
+### 材料管理
+- **任务追踪** - 管理所有申请所需的材料（CV、SOP、推荐信等）
+- **版本控制** - 追踪材料的不同版本
+- **截止日期** - 每个材料任务都有独立的截止日期提醒
+- **文件链接** - 直接链接到本地文件
 
-1. **Node.js** (版本 18 或更高)
-   - 访问 [nodejs.org](https://nodejs.org/) 下载并安装
-   - 或者使用 Homebrew: `brew install node`
+### 决策分析
+- **结构化决策** - 记录申请决策的原因、风险评估和策略
+- **结果追踪** - 记录最终申请结果和反思
+- **数据分析** - 查看申请统计（Apply/Maybe/No比例）
 
-2. **Google Cloud账号** (用于Gmail和Drive集成)
-   - 需要配置OAuth凭据（详见下方说明）
+### 智能文件管理
+- **自动组织** - 上传的文件自动按项目名称分类保存
+- **按类型命名** - 文件自动按材料类型重命名（CV.pdf, SOP.docx等）
+- **双向同步** - 网页操作自动更新文件系统，文件移动/重命名时链接自动更新
+- **外部存储** - 支持配置外部文件夹路径，所有文件存储在指定位置
+- **即时访问** - 材料详情中直接打开文件
 
-## 安装步骤
+### 用户体验
+- **智能日期输入** - 自动格式化日期输入，显示时智能缩略（当年仅显示MM/DD）
+- **本地数据存储** - 所有数据自动保存到浏览器，无需服务器
+- **数据导入/导出** - 支持JSON格式的数据备份和恢复
+- **响应式设计** - 适配桌面端和移动设备
 
-1. **安装依赖**
-   ```bash
-   npm install
-   ```
+### Dashboard仪表板
+- **重要信息一览** - 展示即将截止的项目、待完成的材料
+- **实时统计** - 显示各状态项目数量和申请决策分布
 
-2. **配置Google OAuth**（可选，用于邮件和文件上传功能）
-   - 访问 [Google Cloud Console](https://console.cloud.google.com/)
-   - 创建项目并启用Gmail API和Drive API
-   - 创建OAuth 2.0凭据并下载 `credentials.json`
-   - 将文件放在 `server/` 目录下
-   - 详细步骤请查看 [server/README.md](server/README.md)
+## 📋 系统要求
 
-3. **启动后端服务器**（如果使用邮件/文件功能）
-   ```bash
-   npm run server
-   ```
-
-4. **启动前端开发服务器**
-   ```bash
-   npm run dev
-   ```
-
-5. **在浏览器中打开**
-   - 开发服务器启动后，通常会在 `http://localhost:5173` 运行
-   - 查看终端输出以确认确切的URL
-
-## 构建生产版本
-
-```bash
-npm run build
-```
-
-构建完成后，可以使用以下命令预览：
-
-```bash
-npm run preview
-```
-
-## 项目结构
-
-```
-├── src/
-│   ├── App.tsx          # 主应用组件
-│   ├── main.tsx         # 应用入口
-│   ├── index.css        # 全局样式
-│   ├── components/      # UI组件
-│   └── lib/             # 工具函数
-├── server/              # 后端服务器
-│   ├── server.js        # Express服务器（Gmail & Drive集成）
-│   ├── credentials.json # Google OAuth凭据（需自行配置）
-│   ├── uploads/         # 本地文件上传目录
-│   └── README.md        # 后端详细文档
-├── index.html           # HTML模板
-├── package.json         # 项目依赖
-└── 功能使用指南.md      # 详细使用说明
-```
-
-## 📖 文档
-
-- **[功能使用指南](功能使用指南.md)** - 详细的功能说明和使用方法
-- **[后端服务器文档](server/README.md)** - Gmail和Drive API配置指南
-- **[启动说明](启动说明.md)** - 快速启动指南
-
-## 🎯 主要功能模块
-
-### 1. Projects（项目管理）
-- 追踪所有申请项目
-- 记录截止日期、状态、优先级
-- 评分系统（Fit/Risk/ROI）
-- 关联outreach和材料
-
-### 2. Outreach（PI联系）
-- 记录与PI的邮件往来
-- **发送邮件** - 直接从应用发送Gmail
-- **检查回复** - 自动追踪PI回复
-- **Follow-up提醒** - 3天未回复自动提醒
-- Stage管理（Drafting/Sent/Follow-up/Meeting/Closed）
-
-### 3. Materials（材料管理）
-- 追踪CV、推荐信、文书等材料
-- **本地上传** - 上传文件到服务器
-- **Drive上传** - 直接上传到Google Drive
-- 状态追踪（未开始/草稿/已修改/定稿/已提交）
-- 依赖关系管理
-
-### 4. Decisions（决策分析）
-- 记录申请决策理由
-- 风险和策略分析
-- 结果追踪和复盘
-- 经验总结
-
-### 5. Dashboard（仪表盘）
-- 状态概览
-- 下一个截止日期
-- 即将到期的任务
-- **Follow-up提醒卡片** - 显示需要跟进的邮件
-- 决策统计
+- **Node.js** v18 或更高版本
+- **npm** v9 或更高版本
+- 现代浏览器（Chrome、Firefox、Safari、Edge 最新版本）
 
 ## 🚀 快速开始
 
-### 不使用邮件功能（仅前端）
+### 1. 克隆项目并安装依赖
 
 ```bash
+git clone <repository-url>
+cd SURF_application_website
 npm install
-npm run dev
 ```
 
-### 使用完整功能（邮件 + 文件上传）
-
-1. 配置Google OAuth（详见 [server/README.md](server/README.md)）
-2. 启动后端和前端：
+### 2. 启动后端服务器（文件管理功能）
 
 ```bash
-# Terminal 1: 启动后端
 npm run server
+```
 
-# Terminal 2: 启动前端
+服务器将运行在 `http://localhost:3001`
+
+### 3. 启动前端开发服务器（新开一个终端）
+
+```bash
 npm run dev
 ```
 
-## 🔐 数据存储
+前端将运行在 `http://localhost:5173`
 
-- **本地存储** - 所有数据保存在浏览器的localStorage中
-- **隐私安全** - 数据仅存储在您的浏览器中，不会上传到任何服务器
-- **导出/导入** - 支持JSON格式的数据导出和导入
-- **CSV导出** - 可导出项目列表为CSV格式
+### 4. 打开浏览器访问应用
 
-## 🛠️ 技术栈
+在浏览器中打开 `http://localhost:5173` 即可开始使用
 
-- **前端**: React 18 + TypeScript + Vite
-- **UI组件**: Radix UI + Tailwind CSS
-- **后端**: Express.js + Node.js
-- **API集成**: Google Gmail API + Google Drive API
-- **状态管理**: React Hooks (useState, useEffect, useMemo)
-- **日期处理**: react-datepicker
-- **定时任务**: node-cron
+## 📖 使用指南
 
-## 📝 使用建议
+### 设置存储路径
 
-1. **首次使用**: 先配置Google OAuth，测试邮件发送功能
-2. **工作流**: 
-   - 创建Project → 添加Outreach → 准备Materials → 发送邮件 → 追踪回复
-3. **定期检查**: Dashboard会显示所有需要关注的事项
-4. **数据备份**: 定期导出JSON备份数据
+首次使用时需要配置文件存储位置：
+
+1. 点击右上角 **Settings** 按钮
+2. 在 "External Storage Path" 中输入存储文件夹的绝对路径（例如：`/Users/username/MyResearchFiles`）
+3. 点击文件夹图标可直接在Finder/文件管理器中打开该目录
+4. 点击 "Save Changes" 保存配置
+
+### 创建新项目
+
+1. 点击 **Projects** 标签页中的 **Add Project** 按钮
+2. 在提示框中输入项目名称
+3. 系统将自动创建对应的文件夹
+4. 填写项目详细信息（机构、地区、截止日期等）
+5. 点击 Details 按钮编辑更多信息
+
+### 管理申请材料
+
+1. 在 **Materials** 标签页创建或编辑材料任务
+2. 选择材料类型（CV、SOP、推荐信等）
+3. 设置所属项目和截止日期
+4. 点击 Details 上传文件：
+   - 点击 "Upload & Organize File" 选择本地文件
+   - 文件将自动保存到 `[项目文件夹]/[材料类型].[扩展名]`
+   - 文件链接自动更新到材料记录中
+5. 更改项目或材料类型时，文件自动移动到新位置
+
+### 追踪套磁进度
+
+1. 在 **Outreach** 标签页创建套磁记录
+2. 填写PI信息和首次联系日期
+3. 更新联系阶段（Drafting → Sent → Follow-up等）
+4. 记录回复状态和下一步follow-up计划
+
+### 记录申请决策
+
+1. 在 **Decisions** 标签页查看和编辑申请决策
+2. 填写申请动机、风险评估、拟定策略
+3. 申请后更新结果和反思
+
+## 🛠 技术栈
+
+### 前端
+- **React 18** - UI框架
+- **TypeScript** - 类型安全
+- **Vite** - 快速构建工具
+- **Tailwind CSS** - 样式框架
+- **Radix UI** - 无样式组件库
+- **Lucide React** - 图标库
+
+### 后端
+- **Node.js** - 运行时环境
+- **Express** - Web框架
+- **Multer** - 文件上传处理
+- **CORS** - 跨域资源共享
+
+### 存储
+- **浏览器 LocalStorage** - 前端数据存储
+- **本地文件系统** - 材料文件存储
+
+## 📁 项目结构
+
+```
+SURF_application_website/
+├── src/
+│   ├── App.tsx                 # 主应用组件（3600+ 行）
+│   ├── index.css              # 全局样式
+│   ├── main.tsx               # 应用入口
+│   ├── components/
+│   │   └── ui/                # Radix UI 组件库
+│   └── lib/
+│       └── utils.ts           # 工具函数
+├── server/
+│   └── server.js              # Express 后端服务器
+├── public/                    # 静态资源
+├── dist/                      # 生产构建输出
+├── index.html                 # HTML 模板
+├── package.json               # 项目依赖
+├── tsconfig.json              # TypeScript 配置
+├── vite.config.ts             # Vite 配置
+└── tailwind.config.js         # Tailwind CSS 配置
+```
+
+## 📝 常用命令
+
+```bash
+# 开发
+npm run dev              # 启动前端开发服务器
+npm run server           # 启动后端服务器
+
+# 构建
+npm run build            # 构建生产版本
+
+# 预览
+npm run preview          # 预览生产构建
+```
+
+## 💾 数据管理
+
+### 导出数据
+
+点击 **Data** 菜单中的 **Export JSON** 可导出所有数据为JSON文件，用于备份或迁移。
+
+### 导入数据
+
+点击 **Data** 菜单中的 **Import JSON** 可导入之前导出的数据文件。
+
+### 重置应用
+
+点击 **Data** 菜单中的 **Reset** 可恢复到初始状态（包含示例数据）。
+
+## 🔒 数据安全
+
+- 所有数据存储在浏览器本地，无需上传到服务器
+- 文件存储在用户指定的本地目录
+- 定期导出数据作为备份
+- 建议在重要操作前备份数据
+
+## ⚠️ 常见问题
+
+### Q: 为什么后端必须运行？
+A: 后端服务器处理文件上传、移动、重命名等操作。如果不使用文件功能，可以只运行前端。
+
+### Q: 文件存储在哪里？
+A: 文件存储在Settings中配置的路径下，结构为 `[配置路径]/[项目名]/[材料类型].[扩展名]`
+
+### Q: 可以在多台设备上使用吗？
+A: 前端数据存储在浏览器本地，不同设备无法同步。建议定期导出数据并在需要时导入。
+
+### Q: 数据会丢失吗？
+A: 清除浏览器缓存时会丢失数据。建议定期导出备份。
+
+### Q: 如何删除项目或材料？
+A: 在表格中右键点击对应行或使用Details菜单中的删除按钮。删除时可选择是否同时删除关联文件。
 
 ## 🐛 故障排除
 
-### 前端无法连接后端
-- 确保后端服务器正在运行（`npm run server`）
-- 检查端口3001是否被占用
-- 查看浏览器控制台的错误信息
+### 后端启动失败
 
-### OAuth认证失败
-- 删除 `server/token.json` 重新授权
-- 确认 `credentials.json` 配置正确
-- 检查OAuth权限范围是否包含所需的scopes
+```bash
+# 检查3001端口是否被占用
+lsof -i :3001
+
+# 或使用不同端口
+PORT=3002 npm run server
+```
 
 ### 文件上传失败
-- 确认 `server/uploads/` 目录存在
-- 检查文件大小限制
-- 查看后端服务器日志
 
-详细故障排除请查看 [功能使用指南.md](功能使用指南.md)
+1. 确认Settings中已配置存储路径
+2. 确认路径目录存在且有写入权限
+3. 确认后端服务器正常运行
+
+### 前端无法连接到后端
+
+1. 确认后端服务器在 `http://localhost:3001` 运行
+2. 检查浏览器控制台是否有CORS错误
+3. 确认防火墙未阻止3001端口
 
 ## 📄 许可证
 
-MIT License
+此项目遵循 MIT 许可证
 
 ## 🤝 贡献
 
-欢迎提交 Issues 和 Pull Requests！
-
+欢迎提交问题报告和拉取请求
