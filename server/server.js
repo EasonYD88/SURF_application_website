@@ -41,6 +41,41 @@ app.get('/config', (req, res) => {
   res.json(appConfig);
 });
 
+app.post('/save-backup', (req, res) => {
+  const { data } = req.body;
+  if (!data) return res.status(400).json({ error: 'No data provided' });
+
+  try {
+    const backupDir = path.join(appConfig.storageRoot, 'backups');
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `backup-${timestamp}.json`;
+    const filePath = path.join(backupDir, filename);
+
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+    
+    // Keep only last 10 backups
+    const files = fs.readdirSync(backupDir)
+      .filter(f => f.startsWith('backup-') && f.endsWith('.json'))
+      .sort()
+      .reverse();
+      
+    if (files.length > 10) {
+      files.slice(10).forEach(f => {
+        fs.unlinkSync(path.join(backupDir, f));
+      });
+    }
+
+    res.json({ success: true, filename });
+  } catch (e) {
+    console.error('Backup failed:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/config', (req, res) => {
   const { storageRoot } = req.body;
   if (storageRoot) {

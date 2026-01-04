@@ -890,6 +890,28 @@ export default function SummerResearchTrackerApp() {
     saveStore(store);
   }, [store]);
 
+  // Auto-backup every 30 minutes
+  useEffect(() => {
+    const backupData = async () => {
+      try {
+        await fetch('http://localhost:3001/save-backup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: store }),
+        });
+        console.log('Auto-backup successful');
+      } catch (error) {
+        console.error('Auto-backup failed:', error);
+      }
+    };
+
+    // Initial backup on load
+    backupData();
+
+    const interval = setInterval(backupData, 30 * 60 * 1000); // Every 30 minutes
+    return () => clearInterval(interval);
+  }, [store]);
+
   // Check for follow-ups on mount and every hour
   useEffect(() => {
     const checkFollowups = async () => {
