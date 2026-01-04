@@ -7,9 +7,27 @@ import { google } from 'googleapis';
 import { authenticate } from '@google-cloud/local-auth';
 import cron from 'node-cron';
 import { fileURLToPath } from 'url';
+import { exec } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const CONFIG_PATH = path.join(__dirname, 'config.json');
+
+// Load or initialize config
+let appConfig = {
+  storageRoot: path.join(__dirname, 'uploads')
+};
+
+if (fs.existsSync(CONFIG_PATH)) {
+  try {
+    const savedConfig = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
+    if (savedConfig.storageRoot) {
+      appConfig.storageRoot = savedConfig.storageRoot;
+    }
+  } catch (e) {
+    console.error('Failed to load config:', e);
+  }
+}
 
 const app = express();
 const PORT = 3001;
@@ -17,20 +35,162 @@ const PORT = 3001;
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Config Endpoints
+app.get('/config', (req, res) => {
+  res.json(appConfig);
+});
+
+app.post('/config', (req, res) => {
+  const { storageRoot } = req.body;
+  if (storageRoot) {
+    appConfig.storageRoot = storageRoot;
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(appConfig, null, 2));
+    res.json({ success: true, config: appConfig });
+  } else {
+    res.status(400).json({ error: 'Missing storageRoot' });
+  }
+});
+
+app.post('/open-folder', (req, res) => {
+  const { path: folderPath } = req.body;
+  const target = folderPath || appConfig.storageRoot;
+  
+  let command;
+  switch (process.platform) {
+    case 'darwin': command = `open "${target}"`; break;
+    case 'win32': command = `start "" "${target}"`; break;
+    default: command = `xdg-open "${target}"`; break;
+  }
+
+  exec(command, (error) => {
+    if (error) {
+      console.error('Error opening folder:', error);
+      return res.status(500).json({ error: 'Failed to open folder' });
+    }
+    res.json({ success: true });
+  });
+});
+
+app.post('/create-project-folder', (req, res) => {
+  const { projectName } = req.body;
+  if (!projectName) {
+    return res.status(400).json({ error: 'Missing projectName' });
+  }
+  
+  const sanitize = (str) => str.replace(/[^a-zA-Z0-9_\-\u4e00-\u9fa5\s]/g, '_');
+  const targetDir = path.join(appConfig.storageRoot, sanitize(projectName));
+  
+  try {
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+    res.json({ success: true, path: targetDir });
+  } catch (error) {
+    console.error('Error creating project folder:', error);
+    res.status(500).json({ error: 'Failed to create folder' });
+  }
+});
+
+app.post('/move-file', (req, res) => {
+  const { oldPath, newPath } = req.body;
+  if (!oldPath || !newPath) return res.status(400).json({ error: 'Missing paths' });
+
+  const absOld = path.join(appConfig.storageRoot, oldPath);
+  const absNew = path.join(appConfig.storageRoot, newPath);
+
+  try {
+    if (fs.existsSync(absOld)) {
+      const newDir = path.dirname(absNew);
+      if (!fs.existsSync(newDir)) fs.mkdirSync(newDir, { recursive: true });
+      fs.renameSync(absOld, absNew);
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ error: 'File not found' });
+    }
+  } catch (e) {
+    console.error('Error moving file:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/rename-folder', (req, res) => {
+  const { oldName, newName } = req.body;
+  const absOld = path.join(appConfig.storageRoot, oldName);
+  const absNew = path.join(appConfig.storageRoot, newName);
+
+  try {
+    if (fs.existsSync(absOld)) {
+      fs.renameSync(absOld, absNew);
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ error: 'Folder not found' });
+    }
+  } catch (e) {
+    console.error('Error renaming folder:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/delete-file', (req, res) => {
+  const { filePath } = req.body;
+  const absPath = path.join(appConfig.storageRoot, filePath);
+  try {
+    if (fs.existsSync(absPath)) {
+      fs.unlinkSync(absPath);
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ error: 'File not found' });
+    }
+  } catch (e) {
+    console.error('Error deleting file:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/delete-folder', (req, res) => {
+  const { folderName } = req.body;
+  const absPath = path.join(appConfig.storageRoot, folderName);
+  try {
+    if (fs.existsSync(absPath)) {
+      fs.rmSync(absPath, { recursive: true, force: true });
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ error: 'Folder not found' });
+    }
+  } catch (e) {
+    console.error('Error deleting folder:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Serve files dynamically
+app.get(/^\/files\/(.*)/, (req, res) => {
+  const filePath = req.params[0];
+  const fullPath = path.join(appConfig.storageRoot, filePath);
+  
+  if (fs.existsSync(fullPath)) {
+    res.sendFile(fullPath);
+  } else {
+    res.status(404).send('File not found');
+  }
+});
 
 // Ensure uploads directory exists
-if (!fs.existsSync('uploads')) {
-  fs.mkdirSync('uploads');
+if (!fs.existsSync(appConfig.storageRoot)) {
+  fs.mkdirSync(appConfig.storageRoot, { recursive: true });
 }
 
 // Multer setup for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    if (!fs.existsSync(appConfig.storageRoot)) {
+      fs.mkdirSync(appConfig.storageRoot, { recursive: true });
+    }
+    cb(null, appConfig.storageRoot);
   },
   filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
+    cb(null, `temp_${Date.now()}_${file.originalname}`);
   }
 });
 const upload = multer({ storage });
@@ -71,7 +231,46 @@ app.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) {
     return res.status(400).send('No file uploaded');
   }
-  res.json({ link: `http://localhost:${PORT}/uploads/${req.file.filename}` });
+
+  const { projectId, projectName, type } = req.body;
+  
+  // Use projectName if available, otherwise fallback to projectId or 'General'
+  const safeProjectName = (projectName && projectName !== 'undefined' && projectName !== 'null') 
+    ? projectName 
+    : ((projectId && projectId !== 'undefined' && projectId !== 'null') ? projectId : 'General');
+
+  // Sanitize paths to prevent directory traversal
+  const sanitize = (str) => str.replace(/[^a-zA-Z0-9_\-\u4e00-\u9fa5\s]/g, '_');
+  
+  // Create directory structure: storageRoot/ProjectName/
+  const targetDir = path.join(appConfig.storageRoot, sanitize(safeProjectName));
+  
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir, { recursive: true });
+  }
+
+  const oldPath = req.file.path;
+  // Rename based on type
+  const ext = path.extname(req.file.originalname);
+  const safeType = (type && type !== 'undefined' && type !== 'null') ? type : 'File';
+  const newFilename = `${sanitize(safeType)}${ext}`;
+  const newPath = path.join(targetDir, newFilename);
+
+  try {
+    // If file exists, overwrite it (or handle collision if needed)
+    if (fs.existsSync(newPath)) {
+      fs.unlinkSync(newPath);
+    }
+    fs.renameSync(oldPath, newPath);
+    
+    // Construct URL
+    // Use encodeURIComponent for path segments
+    const urlPath = `/files/${encodeURIComponent(sanitize(safeProjectName))}/${encodeURIComponent(newFilename)}`;
+    res.json({ link: `http://localhost:${PORT}${urlPath}` });
+  } catch (err) {
+    console.error('Error moving file:', err);
+    res.status(500).send('Error saving file');
+  }
 });
 
 // Send email
